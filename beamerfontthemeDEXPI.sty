@@ -1,0 +1,55 @@
+% -----------------------------------------------------------------------------
+% DEXPI Beamer Theme
+% -----------------------------------------------------------------------------
+% Copyright (c) 2026 DEXPI e.V.
+%
+% This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+% International License (CC BY-SA 4.0).
+%
+% You are free to:
+%   - Share: copy and redistribute the material in any medium or format
+%   - Adapt: remix, transform, and build upon the material for any purpose
+%
+% Under the following terms:
+%   - Attribution: You must give appropriate credit to DEXPI e.V.,
+%     provide a link to the license, and indicate if changes were made.
+%   - ShareAlike: If you remix, transform, or build upon the material,
+%     you must distribute your contributions under the same license.
+%
+% Full license text:
+%   https://creativecommons.org/licenses/by-sa/4.0/
+%
+%  Author: Michael Wiedau
+% -----------------------------------------------------------------------------
+
+\ProvidesPackage{beamerfontthemeDEXPI}
+
+% Load Helvetica for sans-serif
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% Structure font
+\setbeamerfont{structure}{family=\sffamily,series=\mdseries}
+
+% Titles
+\setbeamerfont{title}{size=\LARGE,series=\bfseries,parent=structure}
+\setbeamerfont{subtitle}{size=\normalsize,parent=title}
+
+% Info boxes
+\setbeamerfont{date}{size=\scriptsize,series=\mdseries,parent=structure}
+\setbeamerfont{author}{size=\large,series=\mdseries,parent=structure}
+\setbeamerfont{institute}{size=\scriptsize,series=\mdseries,parent=structure}
+
+% TOC fonts
+\setbeamerfont{section in toc}{size=\large,series=\bfseries,parent=structure}
+\setbeamerfont{section in head/foot}{size=\tiny,parent=structure}
+\setbeamerfont{subsection in toc}{size=\small,series=\mdseries,parent={section in toc}}
+
+% Frame titles
+\setbeamerfont{frametitle}{size=\Large,series=\bfseries,parent=structure}
+\setbeamerfont{framesubtitle}{parent=frametitle,size=\large}
+
+% Misc
+\setbeamerfont{caption}{size=\footnotesize}
+\setbeamerfont{item}{parent=structure,series=\mdseries}
+\setbeamerfont{block title}{size=\normalsize,series=\mdseries,parent={structure,block body}}

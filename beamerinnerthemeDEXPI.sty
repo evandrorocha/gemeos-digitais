@@ -1,0 +1,266 @@
+% -----------------------------------------------------------------------------
+% DEXPI Beamer Theme
+% -----------------------------------------------------------------------------
+% Copyright (c) 2026 DEXPI e.V.
+%
+% This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+% International License (CC BY-SA 4.0).
+%
+% You are free to:
+%   - Share: copy and redistribute the material in any medium or format
+%   - Adapt: remix, transform, and build upon the material for any purpose
+%
+% Under the following terms:
+%   - Attribution: You must give appropriate credit to DEXPI e.V.,
+%     provide a link to the license, and indicate if changes were made.
+%   - ShareAlike: If you remix, transform, or build upon the material,
+%     you must distribute your contributions under the same license.
+%
+% Full license text:
+%   https://creativecommons.org/licenses/by-sa/4.0/
+%
+%  Author: Michael Wiedau
+% -----------------------------------------------------------------------------
+
+\ProvidesPackage{beamerinnerthemeDEXPI}
+
+\RequirePackage{tikz}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{calc}
+
+% Define Layer
+\pgfdeclarelayer{background}
+\pgfdeclarelayer{guides}
+\pgfdeclarelayer{foreground}
+\pgfsetlayers{background,main,guides,foreground}
+
+%--------------------------------------
+%  Inner Theme Settings
+%--------------------------------------
+
+% Optional vertical shading background for blocks (you can remove if unused)
+\pgfdeclareverticalshading[lower.bg,upper.bg]{bmb@transition}{200cm}{%
+  color(0pt)=(lower.bg);
+  color(2pt)=(lower.bg);
+  color(4pt)=(lower.bg)}
+
+% Global text margins for content
+\setbeamersize{text margin left=2em, text margin right=2em}
+
+% Frame number in the footer
+\setbeamertemplate{footline}[frame number]
+
+% Remove navigation symbols
+\setbeamertemplate{navigation symbols}{}
+
+% Block appearance
+%\setbeamertemplate{blocks}[rounded][shadow=false]
+
+% Bullet and enumerate styles
+\setbeamertemplate{enumerate items}[default]
+\setbeamertemplate{enumerate subitem}[default]
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{itemize subitem}[circle]
+
+% Table of contents (overview) styling
+\setbeamertemplate{section in toc}[sections numbered]
+\setbeamertemplate{subsection in toc}{%
+    \leavevmode
+    \leftskip=3.2em
+    \rlap{\hskip-2em\inserttocsectionnumber.\inserttocsubsectionnumber}
+    \inserttocsubsection\par
+}
+
+% Frame title styling
+\setbeamertemplate{frametitle}{%
+    \vspace*{0.7em}
+    \bfseries\insertframetitle\par
+    \vskip-5pt
+    \hrulefill\vspace{-0.1em}
+}
+
+% Guides
+\newif\ifshowguides
+%\showguidestrue      % Debug an
+\showguidesfalse   % Debug aus
+
+
+% title page customization
+\setbeamertemplate{title page}{%
+    \begin{tikzpicture}[remember picture, overlay,
+                        x=\paperwidth, y=\paperheight, shift={(current page.south west)}]
+
+        \def\alpha{10}     % from x-axis
+        \def\lenA{0.1}
+        \def\lenB{0.15}
+        \def\lenC{0.65}  % y-distance from top to bottom of title block
+        \def\lenD{0.4}  % y-length of right schraege
+        \def\lenE{0.7}  % x-length of bottom title block
+   
+        % --- Layout-Punkte ---
+        \coordinate (A) at (0.5 ,0.0);
+        \coordinate (B) at ($(A)+(90-\alpha:\lenA)$);
+        \coordinate (C) at ($(B)+(-\lenB,0)$);
+        \coordinate (D) at ($(B)+(90-\alpha:0.92)$);
+        \coordinate (E) at ($(C)+(90-\alpha:0.92)$);
+        \path let \p1 = (B) in coordinate (F) at (1,\y1);
+        \path let \p1 = (A) in coordinate (G) at (1,\y1);
+        \coordinate (H) at (1.0, 1.0);
+
+        % Coordinates of title block
+        \coordinate (I) at (0.0 ,{1-(\lenC)});
+        \coordinate (J) at (\lenE,{1-(\lenC)});
+        \coordinate (K) at ($(J)+(90-\alpha:\lenD)$);
+        \path let \p1 = (K) in coordinate (L) at (0.0,\y1);
+
+        \draw[] (B)--(F);
+        %\draw[] (C)--(E);
+
+        % --- Orientierungshilfe ---
+        \ifshowguides
+        \begin{pgfonlayer}{guides}
+          \fill[red] (A) circle[radius=3pt];
+          \fill[red] (B) circle[radius=3pt];
+          \fill[red] (C) circle[radius=3pt];
+          \fill[red] (D) circle[radius=3pt];
+          \fill[red] (E) circle[radius=3pt];
+          \fill[red] (F) circle[radius=3pt];
+          \fill[red] (G) circle[radius=3pt];
+          \fill[red] (H) circle[radius=3pt];
+          \fill[red] (I) circle[radius=3pt];
+          \fill[red] (J) circle[radius=3pt];
+          \fill[red] (K) circle[radius=3pt];
+          \fill[red] (L) circle[radius=3pt];
+        \end{pgfonlayer}
+        \fi        
+        
+        % --- Hintergrund ---
+        \begin{pgfonlayer}{background}
+          % bottom dark blue
+          \fill[dexpiLightBlue] (C)--(B)--(D)--(E)--cycle;
+
+          % center light blue in bg
+          \fill[dexpiBlue] (A)--(G)--(F)--(B)--cycle;
+
+        % picture polygon (clipped)
+        \begin{scope}
+          \clip (B)--(F)--(H)--(D)--cycle;
+        
+          \node[anchor=south west, inner sep=0]
+            at (B)
+            {\includegraphics[width=\paperwidth]{img/StockSnap_REB7CJXE8C.jpg}};
+        \end{scope}
+          
+          % picture polygone
+          %\fill[red] (B)--(F)--(H)--(D)--cycle;
+
+          % main title block
+          \fill[dexpiBlue] (I)--(J)--(K)--(L)--cycle;
+
+        \end{pgfonlayer}
+        
+        % --- Logo ---
+        \begin{pgfonlayer}{foreground}
+          \node[anchor=north west] 
+            at ([xshift=0.7cm,yshift=-0.5cm]current page.north west)
+            {\includegraphics[height=1.2cm]{img/dexpi_logo.png}};
+        \end{pgfonlayer}
+          
+        % Text auf dem Titel-Polygon
+        \node[anchor=west, text=white, font=\bfseries\huge, text width=.75\paperwidth, align=left] 
+            at ([xshift=0.3cm,yshift=-3.9cm]current page.north west) {
+            \inserttitle
+        };
+
+        \node[anchor=west, text=white, font=\Large, text width=.70\paperwidth, align=left] 
+            at ([xshift=0.6cm,yshift=-5cm]current page.north west) {
+            \insertsubtitle
+        };
+
+        % Slanted blue line bottom left
+        \draw[dexpiBlue, line width=1pt]
+            ([xshift=-0.2cm,yshift=0.2cm]current page.south west) --
+            ([xshift=0.8cm,yshift=-0.8cm]current page.south west);
+
+    \end{tikzpicture}
+    
+    % Author, Institute, Date
+    \vspace{0.7\paperheight}
+    {\textcolor{dexpiBlue}{\usebeamerfont{author}\insertauthor}\par}
+    \vspace{0.3em}
+    {\textcolor{dexpiBlue}{\usebeamerfont{institute}\insertinstitute}\par}
+    \vspace{0.8em}
+    {\usebeamercolor[fg]{date}\usebeamerfont{date}\insertdate}
+}
+    
+    % --- Polygon blocks (DEXPI) ---------------------------------
+      
+    \newlength{\dexpiblockslant}
+    \setlength{\dexpiblockslant}{5pt}
+    \newlength{\dexpiblockpad}
+    \setlength{\dexpiblockpad}{6pt}
+    \newlength{\dexpiblocktitleht}
+    \setlength{\dexpiblocktitleht}{3.5ex}
+    
+    % #1 = beamercolor name, #2 = title text
+    \newcommand{\dexpipolygontitle}[2]{%
+      {\usebeamercolor{#1}%
+       \begin{tikzpicture}
+         \pgfmathsetlengthmacro{\W}{\linewidth}
+         \path[fill=bg]
+           (\dexpiblockslant,0) -- (\W,0) -- (\W-\dexpiblockslant,-\dexpiblocktitleht)
+           -- (0,-\dexpiblocktitleht) -- cycle;
+         \node[anchor=west] at (\dexpiblockpad,-.5\dexpiblocktitleht)
+           {{\color{fg}\usebeamerfont{block title}#2}};
+       \end{tikzpicture}%
+      }%
+    }
+    
+    
+    % Normal block
+    \setbeamertemplate{block begin}{%
+      \par\vskip\medskipamount%
+      \begingroup%
+        \setbeamercolor{item}{fg=dexpiWhite}
+        \dexpipolygontitle{block title}{\insertblocktitle}%
+        \vskip-2pt%
+        \begin{beamercolorbox}[wd=\linewidth,sep=\dexpiblockpad,vmode]{block body}%
+          \usebeamerfont{block body}%
+    }
+    \setbeamertemplate{block end}{%
+        \end{beamercolorbox}%
+      \endgroup%
+      \vskip\smallskipamount%
+    }
+    
+    % Alerted block
+    \setbeamertemplate{block alerted begin}{%
+      \par\vskip\medskipamount%
+      \begingroup%
+        \setbeamercolor{item}{fg=dexpiWhite}
+        \dexpipolygontitle{block title alerted}{\insertblocktitle}%
+        \vskip-2pt%
+        \begin{beamercolorbox}[wd=\linewidth,sep=\dexpiblockpad,vmode]{block body alerted}%
+          \usebeamerfont{block body}%
+    }
+    \setbeamertemplate{block alerted end}{%
+        \end{beamercolorbox}%
+      \endgroup%
+      \vskip\smallskipamount%
+    }
+    
+    % Example block
+    \setbeamertemplate{block example begin}{%
+      \par\vskip\medskipamount%
+      \begingroup%
+        \setbeamercolor{item}{fg=dexpiWhite}
+        \dexpipolygontitle{block title example}{\insertblocktitle}%
+        \vskip-2pt%%
+        \begin{beamercolorbox}[wd=\linewidth,sep=\dexpiblockpad,vmode]{block body example}%
+          \usebeamerfont{block body}%
+    }
+    \setbeamertemplate{block example end}{%
+        \end{beamercolorbox}%
+      \endgroup%
+      \vskip\smallskipamount%
+    }
