@@ -83,166 +83,28 @@ Caio Lacoste \and Pedro Ivo %
 \end{frame}
 
 %------------------------------------------------
-\section{Apresentação do Curso}
+\section{Conceito de Gêmeos Digitais}
 %------------------------------------------------
 
-\begin{frame}{Professor D.Sc. Natanael Moura Junior}
-    \begin{columns}[c] % Centered vertically
-        \begin{column}{0.35\textwidth}
-            \centering
-            \includegraphics[width=0.9\textwidth]{figures/Descrição do Curso/perfil_natanael.JPG}
-        \end{column}        
-        \begin{column}{0.65\textwidth}
-            \begin{description}
-                \item[Formação:] D.Sc. em Inteligência Computacional, M.Sc. em Inteligência Computacional e Graduação em Engenharia Eletrônica e de Computação (todos pela UFRJ)
-                \item[Experiência:] 20+ anos de experiência em análise, processamento de dados e inteligência artificial
-                \item[Expertise:] Processamento de Sinais e Inteligência Computacional
-                \item[Cargos:] Coordenador do LPS da Coppe, Chefe da Área de Inteligência Computacional do PEE/Coppe, Coordenador Acadêmico do DEL/Poli 
-            \end{description}
-        \end{column}
-    \end{columns}
-\end{frame}
-
-\begin{frame}{Professor D.Sc. Natanael Moura Junior - Projetos}
-\begin{itemize}
-    \item Apresentação de Projetos: \hrefcol{https://docs.google.com/presentation/d/1XhYf2BgrD7HocGFU4hLqROTX3mCpJCjutkpUxshbn8k/edit?usp=sharing}{Link}
-\end{itemize}
-\end{frame}
-
-\begin{frame}{Objetivo do Curso}
-
-Disponibilizar e avaliar o conhecimento de uma turma de {\color{red}\textbf{Oficiais da Marinha do Brasil}} do curso de \textbf{Aperfeiçoamento Avançado para Oficiais} no CIAA nos seguintes tópicos: \textit{Processamento de Sinais, Análise de Sinais no domínio do tempo e no domínio das Frequências, Processamento de Sinais em Arrays Lineares, Planares e Volumétricos}
-
-\begin{block}{Atenção}
-O curso de PSA tem a \textbf{fama} de ser difícil para oficiais de Marinha. Vamos fazer de tudo para o curso transcorra da melhor maneira possível. Mas para isso, o professor {\color{blue}\textbf{precisa da ajuda da turma}}.
-    
-\end{block}
-    
-\end{frame}
-
-\begin{frame}{Plano para o Curso}
-
-\begin{figure}[h!tb]
-    \centering
-    \resizebox{\linewidth}{!}{
-        \begin{ganttchart}[
-            hgrid,
-            vgrid={dotted},
-            x unit=0.45cm,
-            y unit chart=.5cm,
-            y unit title=.5cm,
-            title height=1,
-            bar label font=\large\color{black!80},
-            bar top shift=0.15,
-            bar height=.7,
-            group top shift=0.4,
-            group left shift=0,
-            group right shift=0,
-            group height=.2,
-            group peaks width=0.25,
-            group peaks height=.3,
-            group peaks tip position=0,
-            link/.style={thick, ->, black, rounded corners=2mm},
-            link label anchor/.style=below,
-            link mid=.7, link bulge=.6,
-            milestone top shift = 0.25,
-            milestone height = 0.5,
-            milestone left shift = 0,
-            milestone right shift = 0,
-            progress=today,
-            % today=\ganttchartyear-\ganttchartmonth,
-            today=2026-05-25,
-            today label=Atual,
-            bar/.append style={fill=gray},
-            bar incomplete/.append style={draw=black,fill=none},
-            group/.append style={draw=black,fill=black},
-            group incomplete/.append style={draw=black,fill=lightgray},
-            time slot format=isodate-yearmonth,
-            time slot unit=week]{2026-05-24}{2026-07-14}
-
-            \gantttitlecalendar{year, month, week}
-            \ganttset{progress label text={}, link/.style={black, -to}};
-
-            \\ \ganttgroup[name=Marker]{Parte Introdutória}{2026-05-25}{2026-06-17}
-            \\ \ganttgroup[name=Marker]{Parte Processamento de Sinais}{2026-06-18}{2026-06-29}
-            \\ \ganttgroup[name=Marker]{Parte Ensino Ativo}{2026-06-30}{2026-07-08}
-            \\ \ganttgroup[name=Marker]{Encerramento}{2026-07-09}{2026-07-13}
-            \\ \ganttbar[name=Aula 1, bar/.append style={fill=marker_done_color}]{Introdução}{2026-05-25}{2026-05-25}
-            \\ \ganttbar[name=Aula 2, bar/.append style={fill=marker_done_color}]{Introdução}{2026-05-27}{2026-05-27}
-            \\ \ganttbar[name=Aula 3, bar/.append style={fill=marker_done_color}]{Revisão de processamento de Sinais}{2026-06-01}{2026-06-01}
-            \\ \ganttbar[name=Aula 4, bar/.append style={fill=marker_done_color}]{Revisão de processamento de Sinais}{2026-06-03}{2026-06-03}
-            \\ \ganttbar[name=Aula 5, bar/.append style={fill=marker_done_color}]{Revisão de processamento de Sinais}{2026-06-08}{2026-06-08}
-            \\ \ganttbar[name=Aula 5, bar/.append style={fill=marker_done_color}]{Revisão de Propagação de Sinais Acústicos Submarinos}{2026-06-10}{2026-06-10}
-            \\ \ganttbar[name=Aula 6, bar/.append style={fill=marker_done_color}]{Revisão de Propagação de Sinais Acústicos Submarinos}{2026-06-15}{2026-06-15}
-            \\ \ganttbar[name=Aula 7, bar/.append style={fill=marker_done_color}]{Revisão de Propagação de Sinais Acústicos Submarinos}{2026-06-17}{2026-06-17}
-
-            \\ \ganttbar[name=Aula 8, bar/.append style={fill=marker_done_color}]{Caracterização de Sinais Acústicos Submarinos}{2026-06-22}{2026-06-22}
-            \\ \ganttbar[name=Aula 9, bar/.append style={fill=marker_done_color}]{Caracterização de Sinais Acústicos Submarinos}{2026-06-24}{2026-06-24}
-            \\ \ganttbar[name=Aula 10, bar/.append style={fill=marker_done_color}]{Introdução a Conformação de Feixes}{2026-06-29}{2026-06-29}
-            \\ \ganttbar[name=Aula 11, bar/.append style={fill=marker_done_color}]{Apresentação de Seminários}{2026-07-01}{2026-07-01}
-            \\ \ganttbar[name=Aula 12, bar/.append style={fill=marker_done_color}]{Apresentação de Seminários}{2026-07-06}{2026-07-06}
-            \\ \ganttbar[name=Aula 13, bar/.append style={fill=marker_done_color}]{Apresentação de Seminários}{2026-07-08}{2026-07-08}
-            \\ \ganttbar[name=Aula 14, bar/.append style={fill=marker_done_color}]{Encerramento do Curso}{2026-07-13}{2026-07-13}
-            
-        \end{ganttchart};
-    }
-\end{figure}
-    
-\end{frame}
-
-
-\begin{frame}{Bibliografia Adotada}
-
-\begin{enumerate}
-\item \textbf{Livro Principal:} Optimum Array Processing: Part IV of Detection, Estimation, and Modulation Theory, Harry L Van Trees \cite{Trees2002}, \hrefcol{https://www.amazon.com.br/Optimum-Array-Processing-Estimation-Modulation/dp/0471093904}{Link}
-
-\item \textbf{Livro Complementar:} Handbook on Array Processing and Sensor Networks, Simon Haykin e K J Ray Liu \cite{Haykin2015}, \hrefcol{https://www.amazon.com.br/Optimum-Array-Processing-Estimation-Modulation/dp/0471093904}{Link}
-
-\item \textbf{Livro Complementar:} Fundamentals of Acoustic Field Theory and Space-Time Signal Processing, Lawrence Ziomek \cite{Ziomek1995}, \hrefcol{https://www.amazon.com.br/Fundamentals-Acoustic-Theory-Space-Time-Processing/dp/0849394554}{Link}
-
-
-\end{enumerate}
-    
-\end{frame}
 
 %------------------------------------------------
-\section{Introdução}
+\section{Arquitetura de um gêmeo digital}
 %------------------------------------------------
 
-\begin{frame}\frametitle{Classificação de Sinais}
+%------------------------------------------------
+\section{Tipos de gêmeos digitais}
+%------------------------------------------------
 
-\begin{itemize}
-    \item O que é um \textbf{Sinal}? 
-\end{itemize}
-\vspace{-0.5cm}
-        \begin{columns}
-            \begin{column}{0.3\textwidth}
-                \begin{block}{Comunicações \cite{oppenheim1997signals}}
-                    {\small Entende-se que um sinal é uma sequência de estados em um sistema de comunicação que codifica uma mensagem. A definição pode mudar de acordo com o contexto em que se está trabalhando.}
-                \end{block}
-            \end{column}
-            \begin{column}{0.33\textwidth}
-                \begin{block}{Digital \cite{cis307signals}}
-                    {\small Um sinal é uma forma limitada de comunicação entre processos utilizada em sistemas Unix e outros sistemas operacionais.}
-                \end{block}
-                \begin{block}{Informação \cite{proakis2001digital}}
-                {\small Um sinal é a representação de informações em uma forma física ou matemática para processamento}
-                    
-                \end{block}
-            \end{column}
-            \begin{column}{0.35\textwidth}
-                \begin{block}{Física \cite{smith1997scientist}}
-                    {\small Sinais são manifestações físicas de eventos ou processos, capturadas por sensores e processadas para análise ou decisão.}
-                \end{block}
-                \begin{block}{Transmissão \cite{shannon1948mathematical}}
-                    {\small Sinal é a sequência de símbolos ou grandezas portadoras de informação em um canal de comunicação}
-                \end{block}
-            \end{column}
-        \end{columns}
-\end{frame} 
+%------------------------------------------------
+\section{Aplicações em diferentes setores}
+%------------------------------------------------
 
+%------------------------------------------------
+\section{Benefícios e desafios de implantação}
+%------------------------------------------------
 
-
+%------------------------------------------------
+\section{Referências}
 %------------------------------------------------
 
 \begin{frame}[allowframebreaks]
