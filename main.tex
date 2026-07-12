@@ -86,10 +86,94 @@ Caio Lacoste \and Pedro Ivo %
 \section{Conceito de Gêmeos Digitais}
 %------------------------------------------------
 
+\begin{frame}{1. Conceito de Gêmeos Digitais}
+Um Gêmeo Digital (\textit{Digital Twin}) é o modelo virtual de um 'ativo' físico, feito para representar de maneira fiel e em forma digital o estado atual do ativo para agregação de dados, monitoramento e experimentação.
+\begin{itemize}
+    \item Ativo: Uma peça/parte, um produto, um sistema ou um processo (industrial).
+    \item Assemelha-se, age e comporta-se como o ativo real.
+    \item O Gêmeo Digital deve estar conectado ao ativo físico para \textbf{RASTREAR} e \textbf{IMITAR} o ativo \textbf{EM TEMPO REAL}.
+\end{itemize}
+    
+\end{frame}
+
+\begin{frame}{Outras Definições}
+\begin{itemize}
+    \item Modelo inteligente e \textbf{evolutivo}, a imagem digital de uma entidade ou processo físico. Coleções de artefatos conectados representando virtualmente um sistema \textbf{ao longo de seu ciclo de vida}.
+    \item Glaessgen Stargel: “Um gêmeo digital é uma simulação abrangente — multifísica, multiescala e probabilística — de um produto complexo que combina os melhores modelos físicos disponíveis, atualizações de sensores, etc., para espelhar o ciclo de vida de seu gêmeo correspondente.”
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Tipos de Representantes Digitais}
+\begin{itemize}
+    \item Modelo Digital: Representação digital e estática do ativo
+    \item \textit{Sombra} Digital: Modelo digital que se atualiza automaticamente pelos \textbf{dados recebidos do ativo}.
+    \item Gêmeo Digital: Modelo com comunicação \textbf{bidirecional} com o ativo.
+\end{itemize}
+\begin{figure}
+    \centering
+    \includegraphics[width=0.7\linewidth]{figures/digital_reps.png}
+    \caption{https://www.flexcon.it/news-events/digital-twin-vs-digital-shadow-vs-digital-model/}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}{Qualidades do Gêmeo Digital}
+O Gêmeo Digital se diferencia dos demais modelos a partir de suas principais características:
+\begin{itemize}
+    \item Rastreamento do ativo em tempo real.
+    \item Replicação de alta fidelidade dos aspectos do ativo.
+    \item Histórico digital do ativo.
+    \item Habilidade de predição do comportamento (elétrico, mecânico, químico...) do ativo. 
+\end{itemize}
+    
+\end{frame}
 
 %------------------------------------------------
 \section{Arquitetura de um gêmeo digital}
 %------------------------------------------------
+
+\begin{frame}{2. Arquitetura de um Gêmeo Digital}
+O núcleo do Gêmeo Digital é contruído a partir das principais características do ativo que se deseja rastrear.
+
+Considerando que é possível ter múltiplas instâncias de um objeto:
+\begin{itemize}
+    \item Propriedades únicas como ID.
+    \item Processo do Modelo (Ex: Máquina de Estados).
+    \item Detalhes físicos, modelo 3D, BOM.
+    \item Componentes e peças substituíveis.
+    \item Telemetria/Sensores.
+    \item Dados Calculados.
+    \item Contexto.
+\end{itemize}
+
+
+\end{frame}
+
+\begin{frame}{Composição de Gêmeos Digitais}
+Dependendo da aplicação, um GD pode precisar modelar também componentes internos, ou pode estar inserido em uma entidade maior que pode também ter um GD.
+\begin{figure}
+    \centering
+    \includegraphics[width=0.45\linewidth]{figures/gd_context_diagram.png}
+    \caption{Diagrama de Contexto do Gêmeo Digital de uma máquina retificadora (\textit{grinding machine).}}
+\end{figure}
+\end{frame}
+
+\begin{frame}{Gêmeo Digital e IoT}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=1.0\linewidth]{GD_IOT.png}
+\end{figure}
+    
+\end{frame}
+
+\begin{frame}{Arquiterura da Solução de GD}
+
+    \begin{figure}
+        \centering
+        \includegraphics[width=0.8\linewidth]{figures/GD_arch.png}
+    \end{figure}
+\end{frame}
 
 %------------------------------------------------
 \section{Tipos de gêmeos digitais}
@@ -99,11 +183,10 @@ Caio Lacoste \and Pedro Ivo %
 \section{Aplicações em diferentes setores}
 %------------------------------------------------
 
-\begin{frame}{Aplicações em Diferentes Setores}
+\begin{frame}{4. Aplicações em Diferentes Setores}
     \begin{columns}[T]
         \begin{column}{0.5\textwidth}
             \begin{itemize}
-                \item Indústria
                 \item Óleo e gás
                 \item Energia
                 \item Saúde
@@ -120,12 +203,11 @@ Caio Lacoste \and Pedro Ivo %
         \end{column}
     \end{columns}
     \vfill
-    \footnotesize Conteúdo baseado em \cite{vohra2022}.
 \end{frame}
 
 \begin{frame}{Indústria}
     \begin{itemize}
-        \item Empresas industriais usam o gêmeo digital para \textbf{analisar, monitorar e gerenciar} seus sistemas de forma virtual
+        \item A indústria utiliza gêmeos digitais para \textbf{analisar, monitorar e gerenciar} seus sistemas de forma virtual
         \item Apoia a \textbf{previsão} de comportamentos futuros e de anomalias antes que ocorram
         \item Pilar da Indústria 4.0: integra TI, engenharia mecânica, eletrônica, mecatrônica e automação em um só modelo
         \item Depende de dados homogêneos (\textit{homogenization}) e de um vínculo contínuo e bidirecional entre o objeto físico e sua réplica digital
@@ -143,10 +225,10 @@ Caio Lacoste \and Pedro Ivo %
             \item Planejamento e otimização do processo de perfuração
             \item Monitoramento de desempenho de campos petrolíferos
             \item Simulação e análise de dados de produção
-            \item Segurança do pessoal de campo (\textit{wearables}, HUD, tags BLE)
+            \item Segurança do pessoal de campo 
             \item Manutenção preditiva de equipamentos
         \end{itemize}
-        \item Vantagens: eficiência de produção, conformidade regulatória, redução de custos e maior segurança operacional
+        \item Benefícios: eficiência de produção, conformidade regulatória, redução de custos e maior segurança operacional
     \end{itemize}
 \end{frame}
 
@@ -158,15 +240,15 @@ Caio Lacoste \and Pedro Ivo %
     \begin{exampleblock}{Exemplos reais}
         \begin{itemize}
             \item \textbf{GE Digital Wind Farm}: gêmeo digital de parques eólicos que ajusta o projeto de cada turbina às condições específicas do local de instalação
-            \item \textbf{Hitachi Energy -- IdentiQ}: gêmeo digital para sistemas de corrente contínua de alta tensão (HVDC) e qualidade de energia, acelerando a transição para um futuro neutro em carbono
+            \item \textbf{Hitachi Energy -- IdentiQ}: gêmeo digital para sistemas de corrente contínua de alta tensão e qualidade de energia, acelerando a transição para um futuro neutro em carbono
         \end{itemize}
     \end{exampleblock}
 \end{frame}
 
-\begin{frame}{Saúde -- Gestão Hospitalar}
+\begin{frame}{Saúde -- Gestão Hospitalar e Aplicações Clínicas}
     \begin{itemize}
-        \item \textbf{Gestão de fluxo hospitalar}: réplica virtual do hospital permite testar mudanças de estratégia operacional, escala de equipe e modelos de atendimento antes de aplicá-los na prática
-        \item \textbf{Fabricação de produtos médicos} (ex.: vacinas): monitoramento remoto do processo produtivo, com redução de desperdício
+        \item \textbf{Gestão de fluxo hospitalar}: réplicas virtuais de unidades hospitalares permite testar mudanças de estratégia operacional, escala de equipe e modelos de atendimento antes de aplicá-los na prática
+        \item \textbf{Pré-planejamento cirúrgico}: simulação prévia do procedimento em modelo do paciente, treinamento de equipes e redução do risco cirúrgico
     \end{itemize}
     \begin{exampleblock}{Exemplos reais}
         \begin{itemize}
@@ -175,23 +257,12 @@ Caio Lacoste \and Pedro Ivo %
         \end{itemize}
     \end{exampleblock}
 \end{frame}
-
-\begin{frame}{Saúde -- Aplicações Clínicas}
-    \begin{itemize}
-        \item \textbf{Gêmeo digital cardiovascular}: análise inversa com redes neurais recorrentes (LSTM) detecta aneurisma da aorta abdominal com acurácia de 99,91\%
-        \item \textbf{Pré-planejamento cirúrgico}: simulação prévia do procedimento em modelo do paciente, treinamento de equipes e redução do risco cirúrgico
-        \item \textbf{Tratamento personalizado}: modelos \textit{Grey/Black Box} aplicados a câncer de útero e esclerose múltipla, refinando diagnóstico e terapia
-        \item \textbf{COVID-19}: gêmeos digitais pessoais integram prontuário eletrônico, \textit{wearables} e dados de IoT para detecção precoce de sintomas
-    \end{itemize}
-\end{frame}
-
 \begin{frame}{Cidades Inteligentes}
     \begin{itemize}
-        \item \textbf{Gestão de tráfego}: a \textbf{Aimsun} simula o deslocamento de pessoas e veículos para identificar gargalos e testar soluções de fluxo
+        \item \textbf{Gestão de tráfego}: simulação do deslocamento de pessoas e veículos para identificar gargalos e testar soluções de fluxo
         \item \textbf{Construção}: gêmeos digitais orientam projeto, obra e operação de edificações urbanas
-        \item \textbf{Monitoramento estrutural (SHM)}: pontes e prédios acompanhados em tempo real para prevenir falhas
-        \item \textbf{Saúde}: réplicas de hospitais e do sistema de atendimento da cidade
-        \item \textbf{Drenagem}: o motor \textbf{PipeDream} combina um solver hidráulico (equações de Saint-Venant) com filtro de Kalman para prever enchentes em tempo real
+        \item \textbf{Monitoramento estrutural}: pontes e prédios acompanhados em tempo real para prevenir falhas
+        \item \textbf{Escoamento}: previsão e monitoramento de enchentes em tempo real
         \item \textbf{Rede elétrica}: gêmeos digitais de qualidade de energia, como o IdentiQ da Hitachi Energy
     \end{itemize}
 \end{frame}
