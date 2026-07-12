@@ -1,0 +1,571 @@
+--- Página 39 ---
+
+2
+Introduction, History, and Concept
+of Digital Twin
+N. Rajamurugu* and M. K. Karthik
+Department of Aeronautical Engineering, Bharath Institute of Science and
+Technology, Chennai, India
+Abstract
+Digital twin has come into limelight in the recent past. It is a powerful technol-
+ogy, which got notability in the recent past. Even though it came into limelight
+recently, its existence is dated back to 1960s. It is making its place in different
+areas now. It can be used at many places in different sectors or areas. It is all set to
+achieve more notability and reach great heights. It can be truly beneficial in usage
+for many different sectors or areas. This is a great factor. In this chapter, digital
+twin is introduced. Along with introducing digital twin, its history and its concept
+is also explained.
+Keywords: Digital twin, National Aeronautics and Space Administration
+(NASA), technology, virtual model
+2.1 Introduction
+The advent of advanced, innovative and complex engineered systems has
+established new technologies that are far more superior and perform well
+even in harsh environments [19]. In industry 4.0, specially, new technolo-
+gies are seen to be emerging. Digital Twin technology is one such emerging
+technology concept that has become the centre of attention for industry
+and, in more recent years, academia [6].
+The digital twin is considered as one of the key technology trends [8].
+A digital twin is an intelligent and evolving model, which is the virtual
+*Corresponding author: rajamurugu.aero@bharathuniv.ac.in
+Manisha Vohra (ed.) Digital Twin Technology: Fundamentals and Applications, (19–32) © 2023
+Scrivener Publishing LLC
+19
+
+
+
+--- Página 40 ---
+
+20 Digital Twin Technology
+counterpart of a physical entity or process [5]. Digital twins are nowadays
+considered as collections of linked digital artefacts [22]. Digital twin pro-
+vides virtual representations of systems along their lifecycle [10].
+A Digital Twin is one of the enabling technologies of Industry 4.0 that
+couples actual physical systems with corresponding virtual representation
+[15]. A digital twin paradigm is able to continuously monitor complex
+engineering systems [17]. The notion “digital twin” is inspired by the devel-
+opments known under terms like “Industry 4.0” or “Industrial Internet”
+[4]. The concept of using “twins” is rather old. It dates back to NASA’s
+Apollo program [14].
+Digital twin is a technology with great opportunities and advantages. It
+can provide great opportunities and advantages in various sectors. Digital
+twin means a virtual representation or a virtual model of a physical object
+or product where the virtual model resembles to and also acts or behaves
+like the original object or product.
+Digital twin technology allows to run simulations. It can be used in var-
+ious applications. Digital twin can receive real-time data from the original
+object whom it is replicating. This allows virtual model also to have the
+same changes in the virtual model itself in real time as happening in the
+physical object.
+Digital twin application includes real-time monitoring, maintenance,
+etc. [1]. A manufacturing digital twin gives an opportunity to simulate and
+optimize the production system, [2]. Digital twin technology can help us
+understand better the maintenance needs and schedule it accordingly [9].
+The industry 4.0 focuses on the establishment of intelligent products and
+the production processes [21].
+The concept of the digital twin for a production process enables a cou-
+pling of the production system with its digital equivalent as a base for an
+optimization with a minimized delay between the time of data acquisition
+and the creation of the digital twin [11].
+With the advent of Industrial Internet of things, even more data is being
+generated that further highlights the importance of Digital Twinning [7].
+The information transfer from the physical to the digital twin is related to
+the observation and sensing of the physical twin [12]. With existing sensor
+data transmission (in real time), a digital twin can be created that moni-
+tors, controls and optimizes itself [16].
+Digital Twins promise significant benefits for their different stakehold-
+ers when used to support the design, manufacturing management, moni-
+toring and control as well as optimisation of manufactured products, and
+production equipment and systems in manufacturing [25]. A digital twin
+should be capable to guarantee well-defined services to support various
+
+
+
+--- Página 41 ---
+
+Introduction, History, and Concept of Digital Twin 21
+activities such as monitoring, maintenance, management, optimization
+and safety [26].
+A cyber-physical digital twin system plays a very important role in
+Industry 4.0 in manufacturing context [27]. Product and process designs
+are developed in the digital domain nowadays and digital twin can help
+here [18]. The digital twin can be even used in factories to map the entire
+factory floor and its existing levels [20].
+Data acquired of the product or system in real-time provides a better
+understanding of the product or system. There can be many useful and
+innovative possibilities with digital twin technology. Digital twin tech-
+nology has gained limelight and notability in the recent past few years. In
+2017, it was named by Gartner in the top ten strategic technology trends.
+The advantages of digital twin will contribute to help digital twin achieve
+more notability and reach great heights.
+Digital twin is a technology that can predict possible future problems,
+which could occur in an object, system, etc. Hence, the loss an individual or
+a company faces when problems are faced in their products or systems and
+they have to rework on their products or systems and find some solution,
+can be saved with digital twin. Necessary changes can be incorporated as
+and when required according to the prediction of problems, information
+and insight received from digital twin thereby preventing the problems in
+their products or systems.
+This can be a game changer altogether. Whether it is an individual or a
+company, anyone would definitely want to use a technology, which can help
+to avoid problems in their product or system because if any major problem
+occurs in a company’s product or system then it can cost them not just eco-
+nomically but it can lead to even failure of the product or system. All this can
+be prevented with digital twin efficiently. Digital twin is making its place and
+it can significantly contribute towards different sectors with its advantages.
+Apart from predicting possible future problems, digital twin can also help
+in various other ways with its other advantages it can provide to its users.
+The different advantages of digital twin are explained later on in the chapter.
+2.2 History of Digital Twin
+Digital twin has an interesting history. This technology concept was used
+for the first time long ago in the year 1970 but it was only in the year 2010
+that the name of this technology i.e. Digital Twin was coined. In the year,
+this technology concept was presented at a conference but it was presented
+as “Conceptual Ideal for PLM,” and it all had the elements of digital twin.
+
+
+
+--- Página 42 ---
+
+22 Digital Twin Technology
+PLM means project lifecycle management. Altogether, the history of dig-
+ital twin is quite interesting. Let us know and understand the digital twin
+technology briefly.
+The ideology of digital twin technology was introduced during 1991,
+courtesy to David Gelernter. Actually, David Gelernter in his book Mirror
+Worlds had written about the ideology of digital twin. Later, Dr. Michael
+Grieves, for the first time in 2002, had spoken about digital twins at a con-
+ference and had presented its concept there. The conference was held in
+Michigan University. Like mentioned above, it was this conference where
+the concept of digital twin technology was presented as “Conceptual Ideal
+for PLM,” and all digital twin elements were present in it.
+John Vickers from National Aeronautics and Space Administration
+(NASA) eventually coined the term “digital twin” in 2010. The name Digital
+Twin, which John Vickers coined, was written by him in a report. So finally,
+in 2010, this technology’s name was coined. However, prior to all the evets
+mentioned about the history of digital twin till now, it was NASA had first
+worked on digital twin concept in 1960s. NASA had started working on
+this technology concept in 1960s. Later it was used when needed for their
+Apollo 13 program.
+According to Glaessgen Stargel, “A digital twin is a comprehensive
+multi-physics, multi-scale, probabilistic simulation of a complex product
+that combines the best available physical models, sensor updates, etc., to
+mirror the life of its corresponding twin” [3].
+It was in the year 1970 where the concept of digital twin was first used
+during the Apollo 13 mission of NASA. If the history of digital twin is seen
+carefully then it can be understood that from 1970, when it was used for
+the first time till the present time, its journey has been not just interesting
+but very progressive as well.
+Earlier, digital twin had not got the exposure it needed to grow and
+progress but in the recent past, things changed, it came into limelight and
+it got all the exposure and support it needed for its growth. 2002 proved to
+be a turning point for digital as Dr. Michael Grieves had spoken about it
+at a conference and this marked as the first introduction of digital twin at
+a public event, though it was presented as “Conceptual Ideal for PLM” but
+it had all elements of digital twin. Hence, this sure was a turning point for
+digital twin technology.
+However, despite this turning point in 2002 after this conference, dig-
+ital twin was back then yet to receive the kind of exposure it needed. The
+needed exposure started to be received 2010 onwards when John Vickers
+from NASA coined the term “Digital Twin” for this technology. Till 2010,
+
+
+
+--- Página 43 ---
+
+Introduction, History, and Concept of Digital Twin 23
+this name, i.e., Digital Twin was not given to this technology, and it was
+much needed for it to get a fixed name through it is addressed by everyone.
+After John Vickers coining this name “Digital Twin” for this technology
+it was universally addressed as digital twin. From the time it got its name
+till the present time, in all these years slowly but steadily it came into lime-
+light and progressed and is still progressing greatly.
+Its usefulness is getting to be known by all. It can be used in various
+sectors and can play a crucial role in them.
+2.3 Concept of Digital Twin
+Digital twin concept is a very useful technology concept. Digital twin
+means creation of duplicate model, which is a virtual model of a physical
+product or object, where the virtual model resembles to the original prod-
+uct or object. Its behavior is also same as the original product or object.
+There are three different important parts of digital twin model. The first
+important part is comprising of physical products, to be precise, it is physi-
+cal products in real space. The second important part is comprising virtual
+products, precisely it is virtual products in virtual space. The third import-
+ant part is comprising of connections, it is the connection of information
+and data, which ties real products and virtual products together [23]. These
+connections can be also called as link. There is link is for flow of data and
+link for flow of information. The data flow takes place from real space to
+the virtual space and the information flow takes place from the virtual
+space to the real space and virtual sub-spaces [13].
+[13] states there are types of digital twin. The first type is digital twin
+prototype, abbreviated as DTP and the second type is digital twin instance,
+abbreviated as DTI. Let us understand these types but before that it is
+important to know digital twin’s operation is conducted is digital twin
+environment, which is abbreviated as DTE [13].
+2.3.1 DTP
+It is the one that gives description of prototypical physical artifact. DTP has
+great responsibility on itself. It has all bunch of information required for
+the description and production of a real-world version, which replicates or
+copies the digital version. Bunch of information consist of various things
+like what are the necessities, completely annotated 3D model, all different
+materials with listed specifications and their bill, different services bill with
+bill of disposal and processes and so on because it is not limited to only
+
+
+
+--- Página 44 ---
+
+24 Digital Twin Technology
+these mentioned things, there can be more things, which can be included
+here [13].
+2.3.2 DTI
+Here, this is the one in which an individual digital twin is connected to
+real world product throughout life cycle of real world product and it gives
+description of this product. On basis of usage, DTI digital twin could have
+different informational bunches like completely annotated 3D model with
+Geometric Dimensioning and Tolerancing (GD&T) which gives descrip-
+tion of geometry of the physical instance and also all components of it and
+it also includes bill, which consists of a list of all past and present compo-
+nents. There is another bill also present, which is bill of process in which
+there is list of operations conducted while creation of this physical instance
+was going on. Even included are results of any tests and measurements on
+the physical instance, a record which is service record that gives descrip-
+tion of previous services conducted in past and replacement components
+and operational states that were taken from real sensor data, present data,
+previous real data and the one which is predicted for future. Apart from all
+these mentioned things, more things can also be included here [13].
+2.3.3 DTE
+Now this is the one which is an integrated and multi-domain physics appli-
+cation space for operating on the digital twins for a various different rea-
+sons. These different reasons would include:
+• Predictive
+Here, as the name suggests, digital twins utilization would be
+for prediction purposes. Prediction would be done for not
+just future behavior but also for future performance of the
+actual real product. In the prototype stage, prediction will be
+done for the behavior of the product, which is designed as
+well as for the components that differ between their low and
+high tolerances. During prototype stage, there would be pre-
+diction of behavior of the designed product along with com-
+ponents, which vary between its high and low tolerances, so
+as to make sure that the product, which was designed, actu-
+ally met with the required or proposed requirements. In the
+instance stage, the prediction would be a specific instance of
+a specific physical product that included the actual compo-
+nents and component history [13].
+
+
+
+--- Página 45 ---
+
+Introduction, History, and Concept of Digital Twin 25
+• Interrogative
+This one would apply to DTIs where they could be interro-
+gated for current, as well as past, histories. Different instances
+of products would provide data that would be correlated for
+predicting future states [13].
+Digital twin capability supports three of the most power-
+ful tools in the human knowledge tool kit, which are concep-
+tualization, comparison, and collaboration [23].
+2.3.4 Conceptualization
+By just looking at digital twin simulations, it allows people to view progress
+of the actual object or product, the way it is proceeding further and view
+information regarding characteristics of the actual product. This is much
+easier than having a look at performance report of a factory and trying to
+conceptualize regarding the product’s movement through different stations
+[23].
+2.3.5 Comparison
+Using digital twin people can look at different characteristics, which are
+ideal and can also look at tolerance corridor close by or surrounding that
+ideal measurement, and also the actual trend line to find out for different
+kind of products if the work is where the ones working on it wants it to be.
+Basically, deviations, which include both negative and positive deviations
+that can be permitted prior to a result being considered impermissible are
+tolerance corridors. When this ability is present, it enables to conduct com-
+parison and make adjustments for future operations [23].
+2.3.6 Collaboration
+The digital twin model permits sharing of conceptualization, which can be
+visualized in exact same way as it is by as many as number of people and
+these people need not be present at same location [23].
+The NASA initially applied the digital twin concept during the Apollo
+13 mission. According to NASA, the digital twin, is an imaginary compo-
+nent of the actual model that incorporates numerous computational mod-
+els developed in a computer.
+The crucial part of this technology is information flow, which happens
+between the actual and virtual systems. A number of authors have referred
+to digital twin in different terms and based on its applicability.
+
+
+
+--- Página 46 ---
+
+26 Digital Twin Technology
+Hence when digital twin is being talked about or referred, it is done with
+different terms, such as digital model or digital model layout, digital coun-
+terpart, doppelganger, clone, digital footprint, software analog, etc.
+Digital twin has a great advantage as compared to other digital simu-
+lation. Digital twin does not remain static. Digital twin has the ability to
+update in real time.
+Engineers can use a simulation to execute tests and assessments on a
+virtual version of a physical object. However, the simulation is static. In
+other words, unless the engineer adds new parameters to the simulation, it
+will not keep up with the physical asset.
+In contrast, a digital twin can obtain real-time activity update from the
+actual object, process, or system. As a result, any kind of evaluation and
+analysis work are done on the basis real-world scenarios.
+The digital twin updates as it gets real-time data from the physical world,
+changing its state dynamically based on the changes taking place in the
+physical asset and delivering more accurate and valuable outputs.
+2.4 Working Principle
+To understand the working principle better, consider that a digital twin of
+an existing physical product has to be created. Creation of a digital twin
+of an already existing physical product means creation of a digital copy
+or duplicate version of that physical product in a virtual environment,
+where the digital copy or duplicate version resembles the original physical
+product.
+The digital twin model receives input from the data given by sensors
+deployed on the real world product. The real world product can send data
+to the digital twin model, i.e., its digital counterpart in real time and the
+digital twin model can give information regarding the physical product.
+So, the overall working principle involves real-time data of the product
+and to get this real-time data, sensors are deployed on the real world prod-
+uct. The digital copy of the real product is created and linked with the real
+product. Real-time data of the physical object is of prime importance and
+linking the real product with the digital copy allows real-time data trans-
+mission. The real world product can send data to its digital counterpart in
+real time. This enables the digital twin model to duplicate and recreate the
+actions or changes taking place in the original version in real time, allow-
+ing for giving information concerning performance of the product. The
+digital twin model will be actually able to change its state dynamically as
+per the changes in the physical product and give information, important
+
+
+
+--- Página 47 ---
+
+Introduction, History, and Concept of Digital Twin 27
+particulars, and useful insights that could be applicable back to the physi-
+cal product.
+Whatever important information received from digital twin model,
+which will be essential for the physical product, different important partic-
+ulars and insights can be applied to the physical product for its betterment.
+The digital twin can predict regarding the emergence of possible problems
+in the future. This allows to prevent them from emerging in reality in the
+product. This is its way of working and its working principle is clearly dis-
+cussed and explained.
+2.5 Characteristics of Digital Twin
+Some of the characteristics of digital twin are explained as follows.
+2.5.1 Homogenization
+Digital twins enable data homogenization and are also the resultant of data
+homogenization. Be it any kind of information or any kind of material, it can
+be saved as well as sent in a same digital form. This allows it to be utilized
+for constructing a virtual form of a product. Due to this, the data is broken
+down from its real physical state. This break down of data from its real phys-
+ical state and homogenization of data result into emergence of digital twins.
+2.5.2 Digital Trail
+Digital trail can cause digital trail to occur. This digital trail could be helpful
+to check and find out from the digital twin of a particular device that where
+things went wrong when it does not work as expected or it fails to work.
+This could be very helpful for the device manufacturer so that in future
+such things can be taken care of while working on device manufacturing.
+2.5.3 Connectivity
+Real-time data transmission from the original object or product to its digi-
+tal twin gets enabled when the real object or product is linked or connected
+with the digital twin model. Without this linking or connectivity, the
+digital twin model cannot work. So connectivity is a very important char-
+acteristic when it comes to digital twin.
+
+
+
+--- Página 48 ---
+
+28 Digital Twin Technology
+2.6 Advantages
+Digital twin has a lot many advantages. Some of them are listed and
+explained below. They are as follows.
+2.6.1 Companies Can Benefit From Digital Twin by Tracking
+Performance-Related Data
+By continuously tracking performance-related data in real time, with the
+help of digital twin, companies can benefit from it. The different companies
+can then optimize their products through it and enable overall progress
+and gain.
+2.6.2 Different Sector’s Progress Can Be Accelerated
+Different sector progress can also be accelerated by the use of digital twins
+because it can tell or predict the possible problems that can come.
+Then, before the problem comes, some remedies for its prevention can
+be applied. This will be helpful. This will also save any loss, which could
+have happened due to the problems if they arise.
+2.6.3 Digital Twins Can Be Used for Various Application
+Digital twins can be used during product design and development. They
+can be used for any product’s entire lifecycle management. They can be
+used for monitoring the manufacturing process of a product. Similarly dig-
+ital twins can be used for various other applications.
+2.6.4 Digital Twin Can Help Decide Future Course of Work
+Based on the digital twin’s prediction about the possible problems that can
+come in future, what is required to be done, can be decided so that possible
+future problems do not come. The information and insights digital twin
+provides could be applied back to the original object or product for it to
+improve and get better. This is yet another advantage of digital twin, which
+will help largely and this is how digital twin can help decide future course
+of work.
+
+
+
+--- Página 49 ---
+
+Introduction, History, and Concept of Digital Twin 29
+2.6.5 Manufacturing Work Can Be Monitored
+All the activities of the manufacturing process are very important. They
+can be monitored through digital twin. Digital twin even makes remote
+monitoring possible. This is a great advantage of digital twin.
+2.7 Limitations
+Digital twin is a new technology that has a lot of potential. However, there
+are limitations as well, which impede digital twin’s growth. Some of the
+limitations are as follows.
+2.7.1 Data Transmission Could Have Delays and Distortions
+As there is large amount of data generally generated by any physical prod-
+uct and collected by sensors, which needs to be communicated in real-
+time, delay and distortion could be caused while sending data to digital
+twin. This will then delay the changes that need to be updated in real-time
+in the digital twin.
+2.7.2 Digital Twin Implementation Will Need Required Skills
+and Sound Knowledge About It
+Digital twin cannot be implemented without having great sound knowl-
+edge about it. A person having great sound knowledge and required skills
+will only be able to correctly implement digital twin and look after it.
+2.8 Example of Digital Twin Application
+Explained below is one real application of digital twin.
+2.8.1 Digital Twin Application in General Electric (GE)
+Renewable Energy
+General Electric, abbreviated as GE has great presence in various differ-
+ent sectors like healthcare, renewable energy, aviation, etc. GE is very well
+utilizing digital twin for different purposes in its work across different sec-
+tors like healthcare, renewable energy, etc. Here, we are talking regarding
+digital twin application in GE renewable energy sector. GE has actually
+
+
+
+--- Página 50 ---
+
+30 Digital Twin Technology
+introduced a Digital Wind Farm. They have used digital twin technology,
+which helps to ensure that an optimum possible wind turbine is being built
+for the actual farm wherever it is situated [24].
+From above example, it is clear that digital twin is not just useful but it
+also has a great positive impact when used in a particular application. It
+has a far-reaching effect, which can transform things quickly and provide
+great results.
+2.9 Conclusion
+Digital twin technology is receiving a lot of acclaim from different places. It is
+a technology, which is very highly useful. It can be used in different applica-
+tions at various sectors. The concept of digital twin technology is very simple.
+In digital twin technology, a virtual model of the original object is cre-
+ated, which looks the same as the original object. The digital twin also cop-
+ies the original object’s behavior and is not static and can update in real
+time by receiving real-time data from original object.
+Digital twin name was coined by John Vickers from NASA in 2010.
+Originally, the digital twin technological concept was first applied in 1970
+by NASA during their Apollo 13 Mission. Now digital twin technology is
+being applied in different applications successfully. Its advantages are great.
+Though there are some limitations in digital twin as discussed in the chap-
+ter, those limitations do not affect the advantages it can provide. However,
+attention needs to be paid at its limitations. With appropriate steps taken
+to overcome the limitations, they could be overcome.
+The overall advantages of digital twin make it really very useful. It came
+into limelight in the recent past, and due to its great advantages, it will
+surely reach places. Various sectors will benefit from the digital twin tech-
+nology. In this chapter, we saw a real example of application of digital twin
+in General Electric (GE) renewable energy. It truly helps them greatly.
+Likewise, there are at present various more applications of digital twin in
+different sectors, which are providing great results. Digital twin technology
+is indeed of great use.
+References
+1. Singh, M., Fuenmayor, E., Hinchy, E.P., Qiao, Y., Murray, N., Devine, D.,
+Digital twin: Origin to future. Appl. Syst. Innov., 4, 36, 2021, https://doi.
+org/10.3390/asi4020036.
+
+
+
+--- Página 51 ---
+
+Introduction, History, and Concept of Digital Twin 31
+2. Kritzinger, W., Karner, M., Traar, G., Henjes, J., Sihn, W., Digital Twin in
+manufacturing: A categorical literature review and classification, in: IFAC-
+Papers online, vol. 51, pp. 1016–1022, 2018.
+3. Glaessgen, E. and Stargel, D., The digital twin paradigm for future NASA and
+U.S. Air Force vehicles. 53rd Structures, Structural Dynamics, and Materials
+Conference, pp. 1–14, 2012.
+4. Schluse, M. and Rossmann, J., From simulation to experimentable digital
+twins: Simulation-based development and operation of complex technical
+systems. IEEE International Symposium on Systems Engineering (ISSE), IEEE,
+pp. 1–6, 2016.
+5. Barricelli, B.R., Casiraghi, E., Fogli, D., A survey on digital twin: Definitions,
+characteristics, applications, and design implications. IEEE Access, 7,
+167653–167671, 2019.
+6. Fuller, A., Fan, Z., Day, C., Research. IEEE Access, 8, 108952–108971, 2020.
+7. Banerjee, A., Dalal, R., Mittal, S., Joshi, K.P., Generating digital twin models
+using knowledge graphs for industrial production lines. Proc. Workshop Ind.
+Knowl. Graphs (ACM Web Sci. Conf.), pp. 1–6, 2017.
+8. Boschert, S., Heinrich, C., Rosen, R., Next generation digital twin. Proc.
+TMCE, 209–218, 2018.
+9. Madni, A.M., Madni, C., Lucero, S.D., Leveraging digital twin technology in
+model-based systems engineering. Systems, 7, 1, 7, 2019.
+10. Negri, E., Fumagalli, L., Macchi, M.A., Review of the roles of digital twin in
+CPS-based production systems. Procedia Manuf, vol. 11, pp. 939–948, 2017.
+11. Uhlemann, T.H.-J., Lehmann, C., Steinhilper, R., The digital twin: Realizing
+the cyber-physical production system for industry 4.0. Procedia CIRP, vol.
+61, pp. 335–340, 2017.
+12. Schleich, B., Anwer, N., Mathieu, L., Wartzack, S., Shaping the digital twin
+for design and production engineering. Annals, 66, 1, 141–144, 2017.
+13. Grieves, M. and Vickers, J., Digital twin: Mitigating unpredictable, undesir-
+able emergent behavior in complex systems, in: Transdisciplinary Perspectives
+on Complex Systems, Kahlen FJ, S. Flumerfelt, A. Alves (Eds.), pp. 85–113,
+Springer, Cham, 2017, https://doi.org/10.1007/978-3-319-38756-7_4.
+14. Rosen, R., Von Wichert, G., Lo, G., Bettenhausen, K.D., About the impor-
+tance of autonomy and digital twins for the future of manufacturing, in:
+IFAC-Papers onlne, vol. 48, pp. 567–572, 2015.
+15. Melesse, T.Y., Di Pasquale, V., Riemma, S., Digital twin models in industrial
+operations: A systematic literature review. Proc. Manuf., 42, 267– 272, 2020.
+16. Werner, A., Zimmermann, N., Lentes, J., Approach for a holistic predictive
+maintenance strategy by incorporating a digital twin. Proc. Manuf., 39, 1743–
+1751, 2019.
+17. D’Amico, D., Ekoyuncu, J., Addipalli, S., Smith, C., Keedwell, E., Sibson, J.,
+Penver, S., Conceptual framework of a digital twin to evaluate the degrada-
+tion status of complex engineering systems. Procedia CIRP, vol. 86, p. 61 7,
+2020.
+
+
+
+--- Página 52 ---
+
+32 Digital Twin Technology
+18. Maropoulos, P. and Ceglarek, D., Design verification and validation in
+product lifecycle. CIRP Ann. – Manuf. Technol., 59, 2, 740–759, 2010.
+19. Addepalli, S., Roy, R., Axinte, D., Mehnen, J., In-situ’ inspection technolo-
+gies: Trends in degradation assessment and associated technologies. Procedia
+CIRP. 2017; 59(TESConf 2016), pp. 35–40.
+20. David, J., Lobov, A., Lanz, M., Attaining learning Objectives by Ontological
+Reasoning using Digital Twins. Procedia Manuf., 31, 349–355, 2019.
+21. Brettel, M., Friederichsen, N., Keller, M., Rosenberg, M., How virtualiza-
+tion, decentralization and network building change the manufacturing
+landscape: An industry 4.0 perspective. Int. J. Mech. Aerospace Ind. Mechatron.
+Eng., 8, 37–44, 2014.
+22. Vrabič, R., Erkoyuncu, J.A., Butala, P., Roy, R., Digital twins: Understanding
+the added value of integrated models for throughlife engineering services.
+Procedia Manufacturing, pp. 139–146, 2018.
+23. Grieves, M., Digital twin: Manufacturing excellence through virtual factory
+replication, in: Digital Twin White Paper, vol. 1, W. Michael (Ed.), pp. 1–7,
+Grieves LLC, 2014.
+24. GE Renewable Energy, in: Meet the Digital Wind Farm, https://www.ge.com/
+renewableenergy/stories/meet-the-digital-wind-farm.
+25. Romero, D., Wuest, T., Harik, R., Thoben, K.D., Towards a cyber-physical
+PLM environment: The role of digital product models, intelligent products,
+digital twins, product avatars and digital shadows, in: IFAC-Papers Online,
+vol. 53, pp. 10911–10916, 2020.
+26. Cimino, C., Negri, E., Fumagalli, L., Review of digital twin applications in
+manufacturing. Comput. Ind., 113, 103130, 2019.
+27. Lin, W.D. and Low, M.Y.H., Concept design of a system architecture for
+a manufacturing cyber-physical digital twin system. IEEE International
+Conference on Industrial Engineering and Engineering Management (IEEM),
+pp. 1320–1324, 2021.
+
+
