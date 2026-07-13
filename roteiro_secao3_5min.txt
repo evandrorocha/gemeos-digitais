@@ -1,0 +1,115 @@
+================================================================================
+ROTEIRO CONDENSADO (5 MINUTOS) - SEÇÃO 3: TIPOS DE GÊMEOS DIGITAIS
+================================================================================
+
+TRANSIÇÃO DA SEÇÃO 2 PARA A SEÇÃO 3 (10 segundos):
+--------------------------------------------------------------------------------
+"Compreendida a arquitetura básica, vamos agora entender como a literatura 
+classifica os gêmeos digitais, pois existem diferentes tipos e abordagens. 
+Vamos entrar na Seção 3."
+--------------------------------------------------------------------------------
+
+SLIDE 3.0: DIVISOR DE SEÇÃO (15 segundos - total acumulado: 0:25):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Título da Seção 3.
+* FALA SUGERIDA:
+  "Esta seção aborda os tipos de Gêmeos Digitais. Ela é fundamentada 
+  principalmente nos capítulos iniciais do livro da autora Manisha Vohra, que 
+  sistematiza como essa tecnologia se divide na prática."
+--------------------------------------------------------------------------------
+
+SLIDE 3.1: VISÃO GERAL DAS CLASSIFICAÇÕES (30 segundos - total: 0:55):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Três blocos: Taxonomia de Grieves, Granularidade, 
+  Nível de Integração.
+* FALA SUGERIDA:
+  "Para organizar o entendimento, classificamos os gêmeos digitais sob três 
+  perspectivas complementares: a Taxonomia de Grieves, focada no ciclo de vida 
+  do produto; a Granularidade, baseada no tamanho do escopo modelado; e o Nível 
+  de Integração, definido pelo sentido do fluxo de dados."
+--------------------------------------------------------------------------------
+
+SLIDE 3.2: TAXONOMIA DE GRIEVES – DTP E DTI (45 segundos - total: 1:40):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: DTP (Protótipo) e DTI (Instância).
+* FALA SUGERIDA:
+  "Na Taxonomia de Grieves, temos duas categorias fundamentais. O DTP, ou 
+  Protótipo Digital, existe ANTES do ativo físico. Ele é o projeto completo: 
+  especificações, CAD 3D e processos necessários para a produção. 
+  
+  O DTI, ou Instância Digital, nasce junto com o produto físico. Cada unidade 
+  real fabricada tem seu próprio DTI exclusivo que registra seu histórico, 
+  manutenções e dados de sensores em tempo real."
+--------------------------------------------------------------------------------
+
+SLIDE 3.3: TAXONOMIA DE GRIEVES – DTA E DTE (45 segundos - total: 2:25):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: DTA (Agregado), DTE (Ambiente) e diagrama explicativo.
+* FALA SUGERIDA:
+  "Quando agrupamos todas as instâncias de um produto, formamos o DTA ou 
+  Gêmeo Agregado. Ele serve para gerenciar frotas e correlacionar dados entre 
+  máquinas diferentes. 
+  
+  Todos esses modelos rodam dentro do DTE, o Ambiente do Gêmeo Digital. Ele 
+  funciona de modo preditivo (para simular cenários futuros) e interrogativo 
+  (para consultar o histórico de qualquer ativo)."
+--------------------------------------------------------------------------------
+
+SLIDE 3.4: CLASSIFICAÇÃO POR GRANULARIDADE (40 segundos - total: 3:05):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Fluxo Parts Twin -> Product -> System -> Process Twin.
+* FALA SUGERIDA:
+  "Pela granularidade, definimos o tamanho do que é modelado. Começa no Parts 
+  Twin (peça individual), sobe para o Product Twin (conjunto de componentes, 
+  como um motor), avança para o System Twin (múltiplos produtos integrados) e 
+  chega ao Process Twin (processo industrial completo da fábrica). Este último, 
+  por exemplo, ajuda a mapear tempos exatos e otimizar a eficiência fabril."
+--------------------------------------------------------------------------------
+
+SLIDE 3.5: NÍVEL DE INTEGRAÇÃO DE DADOS (45 segundos - total: 3:50):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Diagrama: Modelo Digital, Sombra Digital e Gêmeo Digital.
+* FALA SUGERIDA:
+  "Este é o conceito mais crítico. Dividimos os sistemas em três níveis de 
+  integração:
+  1. Modelo Digital: Sem troca automatizada de dados (ex: arquivo CAD estático).
+  2. Sombra Digital: O fluxo é unidirecional. O digital apenas lê dados do 
+     físico em tempo real (ex: painéis de IoT).
+  3. Gêmeo Digital: A integração é bidirecional. O digital lê os dados e, 
+     após simulações, envia comandos de volta que atuam diretamente no físico."
+--------------------------------------------------------------------------------
+
+SLIDE 3.6: MODELO × SOMBRA × GÊMEO – COMPARAÇÃO (30 segundos - total: 4:20):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Tabela comparativa e alerta de rodapé.
+* FALA SUGERIDA:
+  "A tabela compara esses recursos. Destaco o alerta de rodapé: na indústria, 
+  muitas soluções comercializadas como 'gêmeos digitais' são apenas sombras 
+  digitais. Elas apenas monitoram os dados, sem automatização ou controle 
+  bidirecional sobre o ativo físico."
+--------------------------------------------------------------------------------
+
+SLIDE 3.7: FERRAMENTA DE CONHECIMENTO (25 segundos - total: 4:45):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Blocos: Conceituação, Comparação, Colaboração.
+* FALA SUGERIDA:
+  "Grieves também pontua que o gêmeo digital apoia o conhecimento em três eixos: 
+  na Conceituação (visualizar dados de forma intuitiva), na Comparação 
+  (identificar desvios do estado real contra o ideal) e na Colaboração 
+  (permitir que especialistas distantes tomem decisões no mesmo modelo)."
+--------------------------------------------------------------------------------
+
+SLIDE 3.8: TIPOS DE GÊMEOS DIGITAIS – RESUMO (20 segundos - total: 5:05):
+--------------------------------------------------------------------------------
+* O QUE ESTÁ NA TELA: Resumo das 3 taxonomias e ponto-chave.
+* FALA SUGERIDA:
+  "Como resumo, estas três classificações são complementares e ortogonais. Um 
+  único gêmeo digital pode ser uma Instância (DTI), modelar um Processo Inteiro 
+  (Process Twin) e operar com fluxo bidirecional completo simultaneamente."
+--------------------------------------------------------------------------------
+
+TRANSIÇÃO PARA A SEÇÃO 4:
+--------------------------------------------------------------------------------
+"Agora, tendo dominado as classificações teóricas, vamos analisar como as 
+empresas aplicam essas tecnologias na prática. Vamos à Seção 4."
+================================================================================
