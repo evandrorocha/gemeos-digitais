@@ -1,7 +1,0 @@
-\babel@toc {portuguese}{}\relax 
-\beamer@sectionintoc {1}{Conceito de Gêmeos Digitais}{3}{0}{1}
-\beamer@sectionintoc {2}{Arquitetura de um gêmeo digital}{3}{0}{2}
-\beamer@sectionintoc {3}{Tipos de gêmeos digitais}{3}{0}{3}
-\beamer@sectionintoc {4}{Aplicações em diferentes setores}{12}{0}{4}
-\beamer@sectionintoc {5}{Benefícios e desafios de implantação}{25}{0}{5}
-\beamer@sectionintoc {6}{Referências}{25}{0}{6}
