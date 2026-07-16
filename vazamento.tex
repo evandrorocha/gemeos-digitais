@@ -210,18 +210,170 @@ Caio Lacoste \and Pedro Ivo %
     \vfill
 \end{frame}
 
+\begin{frame}{A Origem do WIS (Well Integrity Surveillance) uma Falha Real}
+    \begin{alertblock}{O gatilho: colapso do poço PW1}
+        Uma operação não intencional despressurizou o anular A abaixo do limite de projeto, causando \textbf{colapso do revestimento} -- da superfície até a coluna de produção -- resultando em falha total e abandono do poço (Campos et al., 2019)
+    \end{alertblock}
+    \begin{itemize}
+        \item \textbf{O insight veio da autópsia}: simulando o comportamento do poço com os dados históricos, foi possível identificar o momento exato do colapso via modelagem matemática
+        \item \textbf{Conclusão da Petrobras}: se a física explica a falha \textit{a posteriori}, um gêmeo digital rodando essa física \textbf{em tempo real} teria alertado antes do colapso
+    \end{itemize}
+
+    \vfill
+    \footnotesize Incidente descrito em Campos et al. (2019) e retomado em \cite{otc2020}.
+\end{frame}
+
+
+\begin{frame}{Óleo e Gás -- WIS: Well Integrity Surveillance}
+    \footnotesize
+    \begin{itemize}
+    \item O projeto de P\&D que evoluiu para o WIS -- avaliar em tempo real eventos críticos de integridade durante a produção
+        \item \textbf{WIS (Well Integrity Surveillance)}: processo que integra um modelo de \textbf{escoamento transiente multifásico}  a um \textbf{modelo estrutural do poço} 
+        \item Cargas calculadas \textbf{em tempo real} em função dos dados de produção (PDGs, árvore de natal, topside)
+        \item Opera \textbf{24/7} em ambiente colaborativo: handover do poço, relatórios de inspeção/intervenção, dados de produção e modelagem de escoamento
+    \end{itemize}
+    
+    \vfill
+    \footnotesize Conteúdo baseado em \cite{spe210260,otc2020}.
+\end{frame}
+
+\begin{frame}{WIS -- Camada 1: Aquisição}
+    \begin{itemize}\setlength\itemsep{6pt}
+        \item Os \textbf{sensores do poço e da plataforma} são a base de tudo: sem dados de produção confiáveis e contínuos, não há como calcular cargas em tempo real
+        \item Três fontes de dados de produção alimentam o twin: \textbf{PDGs} (fundo de poço), \textbf{árvore de natal} e \textbf{topside}
+        \item Os dados são transmitidos em tempo real ao \textbf{RTOC / Centro de Suporte} (Macaé), onde o restante da arquitetura processa e interpreta essas séries
+    \end{itemize}
+    \begin{exampleblock}{Por que essa camada vem primeiro}
+        Todas as camadas seguintes -- simulação, diagnóstico, decisão humana -- dependem da qualidade e da continuidade dos dados adquiridos aqui. É o alicerce do restante da arquitetura
+    \end{exampleblock}
+    \vfill
+    \footnotesize Conteúdo baseado em \cite{otc2020}.
+\end{frame}
+
+\begin{frame}{WIS -- Camada 2: Motor Físico Duplo Acoplado}
+    \begin{itemize}\setlength\itemsep{5pt}
+        \item Um \textbf{simulador de escoamento multifásico transiente} calcula o perfil de pressão e temperatura ao longo de todo o poço, a cada instante
+        \item Esses perfis viram \textbf{cargas de entrada} do \textbf{modelo estrutural do poço}, que calcula:
+        \begin{itemize}
+            \item tensões nos revestimentos
+            \item APB (\textit{Annulus Pressure Buildup}) nos anulares confinados
+            \item fatores de segurança
+        \end{itemize}
+    \end{itemize}
+    \begin{exampleblock}{O acoplamento termo-hidráulico $\rightarrow$ estrutural}
+        É este acoplamento -- escoamento alimentando estrutura -- que transforma um simulador de fluxo comum em um digital twin de \textbf{integridade}: a física do fluido dentro do poço passa a ter consequência mecânica calculada em tempo real
+    \end{exampleblock}
+    \vfill
+    \footnotesize Conteúdo baseado em \cite{otc2020}.
+\end{frame}
+
+\begin{frame}{WIS -- Camada 3: Diagnóstico}
+    \begin{itemize}\setlength\itemsep{6pt}
+        \item \textbf{Comparação contínua} entre o que é medido pelos sensores e o que o motor físico simula para aquele mesmo instante
+        \item Divergências entre medido e simulado são o sinal de alerta: o sistema identifica automaticamente
+        \begin{itemize}
+            \item \textbf{washouts}
+            \item limites de \textbf{pressão/vazão} excedidos por equipamento
+            \item falha de \textbf{DHSV}
+            \item \textbf{pack-off}
+        \end{itemize}
+    \end{itemize}
+    \begin{exampleblock}{De simulação a vigilância}
+        É esta camada que converte a réplica física em ferramenta de \textbf{diagnóstico}: o problema não precisa mais ser descoberto depois do fato -- ele aparece como desvio no momento em que ocorre
+    \end{exampleblock}
+    \vfill
+    \footnotesize Conteúdo baseado em \cite{otc2020}.
+\end{frame}
+
+\begin{frame}{WIS -- Camada 4: Colaborativa/Humana}
+    \begin{itemize}\setlength\itemsep{6pt}
+        \item Vigilância \textbf{24/7} integrada a documentos operacionais: \textbf{handover} do poço, relatórios de \textbf{inspeção} e \textbf{intervenção}, dados de produção e modelagem de escoamento
+        \item Engenheiros no centro de operações interpretam os alertas da camada de diagnóstico e decidem a ação -- o twin informa, o humano decide
+    \end{itemize}
+    \begin{exampleblock}{Validação em campo}
+        Com essa arquitetura, a Petrobras implementou um \textbf{projeto piloto em três unidades de produção offshore} no Brasil, aumentando o conhecimento do comportamento estrutural do poço e, consequentemente, a segurança operacional dos ativos
+    \end{exampleblock}
+    \vfill
+    \footnotesize Conteúdo baseado em \cite{otc2020}.
+\end{frame}
+
+\begin{frame}{Óleo e Gás -- WIS: Sensores e Dados Monitorados}
+    \footnotesize
+    O paper aponta três fontes de dados de produção:
+    \begin{description}
+        \item[PDG] \textit{Permanent Downhole Gauge} -- sensor permanente de fundo de poço (coluna de produção); mede \textbf{pressão e temperatura de fundo contínuas}, o dado mais valioso do poço. Ex.: uma operação inteira de interceptação de poço foi monitorada via PDG do PW1, permitindo identificar o momento exato da interceptação e deslocar os fluidos de cimentação com segurança
+        \item[X-TREE] árvore de natal molhada -- pressão/temperatura na árvore (TPT), status de válvulas (WCT, DHSV) e métricas da linha de controle hidráulica do SCM, indicando a saúde hidráulica do sistema de controle submarino
+        \item[Topside] instrumentação da plataforma/FPSO -- pressões, temperaturas e vazões de chegada, dados de separação e teste de poço
+    \end{description}
+
+
+
+    \vfill
+    \footnotesize Palavras-chave do SPE-210260: \textit{pdg pressure}, \textit{pdg temp}. Conteúdo baseado em \cite{spe210260,otc2020}.
+\end{frame}
+
+\begin{frame}
+\begin{itemize}
+\begin{exampleblock}{O que é monitorado e calculado (lista fechada)}
+\item \textbf{Séries temporais}: P/T de fundo (PDG), P/T na árvore (TPT), status/posição de válvulas, pressão da linha de controle do SCM, vazões/P/T de topside
+\item \textbf{Dados contextuais}: projeto do poço, relatórios de inspeção e intervenção, informações de handover
+\item \textbf{Calculado pelo twin}: perfis P/T ao longo do poço, APB por anular, fatores de segurança estruturais -- inclusive como instrumentação \textit{virtual} em poços sem PDG
+    \end{exampleblock}
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Ecossistema de Gêmeos Digitais da Petrobras}
+    \begin{exampleblock}{Cascos de FPSO -- SENSFIB}
+        Os novos FPSOs P-80 e P-83 terão gêmeos digitais conectados a dados ao vivo de diversos sensores, incluindo o sistema de monitoramento de casco \textbf{SENSFIB} -- baseado em fibra óptica com tecnologia \textit{Fiber Bragg Grating} (FBG), que mede tensão/deformação estrutural do casco em tempo real
+    \end{exampleblock}
+    \begin{exampleblock}{Risers flexíveis -- CESAR (COPPE-UFRJ/Petrobras)}
+        Gêmeos digitais para monitoramento estrutural e de corrosão por CO$_2$ em risers flexíveis, já aplicado a \textbf{40 risers} da Petrobras até meados de 2025; sensores de campo alimentam um modelo de severidade e vida remanescente dos dutos mais críticos -- premiado com \textbf{ASME Global Pipeline Award 2025}, SPE e ANP
+    \end{exampleblock}
+    \begin{block}{Panorama Petrobras}
+        Poço (PDG/árvore) + casco (fibra FBG) + riser (corrosão por CO$_2$) + produção (ALFAtwin) + refino: \textbf{cinco gêmeos digitais}, cada um com sua física e seus sensores
+    \end{block}
+    \vfill
+    \footnotesize Conteúdo baseado em \cite{spe210260,otc2020}.
+\end{frame}
+
+
 
 
 %------------------------------------------------
-\section{Novos Exemplos}
+\section{Mais Benefícios}
 %------------------------------------------------
 
-\begin{frame}[plain]
-    \vfill
-    \centering
-    {\Large\textcolor{dexpiBlue}{\textbf{Seção 4}}}\\[0.8em]
-    {\LARGE\textbf{Novos Exemplos}}\\[0.6em]
-    \vfill
+% \begin{frame}[plain]
+%     \vfill
+%     \centering
+%     {\Large\textcolor{dexpiBlue}{\textbf{Seção 4}}}\\[0.8em]
+%     {\LARGE\textbf{Novos Exemplos}}\\[0.6em]
+%     \vfill
+% \end{frame}
+
+\begin{frame}{4. Mais um benefício}
+
+\vspace{0.2cm}
+
+\begin{itemize}
+    \item \textbf{Treinamento}: Além de usar o simulador para benchmarking e manutenção preditiva, facilita o treinamento de funcionários no controle de máquinas e situações de perigo. \cite{kaarlelaDTForSafetyTraining}
+\end{itemize}
+
+\vfill
+
+\begin{center}
+    \includegraphics[
+        height=0.4\paperheight,
+        keepaspectratio
+    ]{img/trainingVR.png}
+    \hspace{0.5cm}
+    \includegraphics[
+        height=0.4\paperheight,
+        keepaspectratio
+    ]{img/trainingFire.png}
+\end{center}
+
 \end{frame}
 
 
