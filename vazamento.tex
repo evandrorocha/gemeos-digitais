@@ -119,35 +119,82 @@ Caio Lacoste \and Pedro Ivo %
         2. Fluxo de Dados & Kritzinger \cite{fuller2020dt} & Modelo, Sombra e Gêmeo Digital \\
         3. Granularidade & Vohra \cite{vohra2022dt} & Componente, Ativo, Sistema, Processo \\
         4. Cognitivos (CDT) & El Adl \cite{eladl2016cdt} / Zheng \cite{zheng2022emergence} & Raciocínio, Grafos de Conhecimento \\
-        5. Generativo (GenDT) & Xia \cite{xia2024aas} & Modelagem Generativa, Agentes (LLMs) \\
         \bottomrule
     \end{tabular}
 \end{frame}
 
-\begin{frame}{Gêmeo Digital Cognitivo (CDT)}
-    Proposto conceitualmente por Ahmed El Adl \cite{eladl2016cdt} e formalizado por Zheng et al. \cite{zheng2022emergence}, o CDT estende o gêmeo tradicional adicionando capacidades de raciocínio, semântica e autoadaptação:
-    \vspace{0.4em}
+\begin{frame}{As Dimensões da Cognição no Contexto do CDT}
+    Proposto conceitualmente por Ahmed El Adl \cite{eladl2016cdt} e formalizado por Zheng et al. \cite{zheng2022emergence}, o CDT estende o gêmeo tradicional adicionando capacidades da mente humana \cite{alfaruque2021cdt} :
     \begin{columns}[T]
         \begin{column}{0.48\textwidth}
-            \begin{block}{O Cérebro do CDT (Ontologias)}
+            \begin{block}{Interação e Filtro}
                 \footnotesize
-                \begin{itemize}
-                    \item \textbf{Grafos de Conhecimento:} Mapeiam o contexto e as inter-relações lógicas de todo o sistema físico.
-                    \item \textbf{Raciocínio Lógico:} Dedução de causas e efeitos (ex: diagnosticar se uma anomalia é falha de leitura do sensor ou avaria real).
+                \begin{itemize}\setlength\itemsep{0pt}
+                    \item \textbf{Percepção:} Tradução de dados brutos de sensores em representações úteis.
+                    \item \textbf{Atenção:} Foco computacional dinâmico em eventos e subsistemas em risco.
+                \end{itemize}
+            \end{block}
+            \begin{block}{Retenção de Contexto}
+                \footnotesize
+                \begin{itemize}\setlength\itemsep{0pt}
+                    \item \textbf{Memória:} Reter histórico (episódica), regras (semântica) e dados de trabalho.
                 \end{itemize}
             \end{block}
         \end{column}
         \begin{column}{0.48\textwidth}
-            \begin{exampleblock}{Capacidades Cognitivas}
+            \begin{block}{Processamento e Decisão}
                 \footnotesize
-                Mapeamento da ciência cognitiva humana:
-                \begin{itemize}
-                    \item \textbf{Percepção e Atenção:} Filtragem de ruídos para foco em metas críticas.
-                    \item \textbf{Memória e Aprendizado:} Atualização autônoma de modelos com base no desgaste temporal da máquina.
+                \begin{itemize}\setlength\itemsep{0pt}
+                    \item \textbf{Raciocínio (\textit{Reasoning}):} Inferência lógica para deduzir diagnósticos explicáveis.
+                    \item \textbf{Resolução de Problemas:} Geração autônoma de planos e ações corretivas.
                 \end{itemize}
-            \end{exampleblock}
+            \end{block}
+            \begin{block}{Evolução}
+                \footnotesize
+                \begin{itemize}\setlength\itemsep{0pt}
+                    \item \textbf{Aprendizado:} Evolução autônoma de modelos com novas experiências.
+                \end{itemize}
+            \end{block}
         \end{column}
     \end{columns}
+\end{frame}
+
+\begin{frame}{Comparativo: Digital Twin vs. Cognitive Digital Twin \cite{alfaruque2021cdt}}
+    \centering
+    \includegraphics[height=0.55\textheight]{img/standard_vs_cognitive_digital_twin.png}
+    \vspace{0.4em}
+    \begin{itemize}
+        \footnotesize
+        \item \textbf{Digital Twin Tradicional (Esquerda):} Mapeamento físico-digital simples; a única inteligência é o aprendizado básico (\textit{Learning}) de padrões.
+        \item \textbf{Cognitive Digital Twin (Direita):} Dotado de um "cérebro" com múltiplas capacidades cognitivas integradas (Percepção, Atenção, Memória, Resolução de Problemas, Raciocínio) atuando sobre o ativo físico.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{Evolução do Volume de Publicações sobre CDTs}
+    \begin{columns}[T]
+        \begin{column}{0.52\textwidth}
+            \centering
+            \includegraphics[width=\textwidth]{img/cdt_publications_per_year.png}
+            \vspace{0.1em}
+            \centerline{\tiny Distribuição de artigos por ano de publicação.}
+        \end{column}
+        \begin{column}{0.45\textwidth}
+            \begin{block}{Metodologia de Contagem}
+                \scriptsize
+                Revisão sistemática (PRISMA 2020) conduzida nas bases **Scopus** e **Web of Science**.
+            \end{block}
+            \begin{block}{Critério de Alto Impacto}
+                \scriptsize
+                Inclui **apenas artigos de periódicos (*journals*)**. Capítulos de livros, conferências e editoriais foram excluídos.
+            \end{block}
+            \begin{block}{Conclusão da Tendência}
+                \scriptsize
+                Pico expressivo em 2025 (25 artigos), liderado pela área de **Manufatura (37\%)**.
+            \end{block}
+        \end{column}
+    \end{columns}
+    \vfill
+    \footnotesize Fonte: Bacnak et al. \cite{bacnak2026systematic}.
 \end{frame}
 
 \begin{frame}{Casos de Sucesso do CDT em Operação}
@@ -158,43 +205,6 @@ Caio Lacoste \and Pedro Ivo %
         \item \textbf{Montagem de Transmissões (PTU) \cite{zheng2022emergence}:} Integração de CDT com sensores heurísticos reduziu refugo industrial, elevando a precisão da detecção de falhas de montagem em \textbf{9\%}.
         \item \textbf{Prédios Inteligentes e Climatização (HVAC) \cite{elmokhtari2022hvac}:} Um CDT de controle preditivo realizou previsões de carga térmica 24 horas antes e ajustou dinamicamente ar-condicionado e luzes com base em presença, cortando desperdícios.
     \end{itemize}
-\end{frame}
-
-\begin{frame}{O Gêmeo Digital Generativo (GenDT)}
-    A integração de IA Generativa (LLMs e modelos de difusão) foca em automatizar a criação do gêmeo e facilitar a interação \cite{xia2024aas}:
-    \vspace{0.4em}
-    \begin{itemize}\setlength\itemsep{5pt}
-        \item \textbf{Modelagem Semântica Automatizada:} Agentes de IA leem especificações técnicas e manuais em PDF não estruturados e geram cascas administrativas padronizadas (Asset Administration Shell - AAS) automaticamente.
-        \item \textbf{Twin Talk (Interface Conversacional):} O operador pergunta à máquina em linguagem natural (*``Qual o risco de quebra se rodarmos na velocidade máxima por 4 horas?''*). O LLM traduz isso em parâmetros de simulação, executa e retorna a resposta formatada.
-    \end{itemize}
-\end{frame}
-
-
-\begin{frame}{Sinergia: Gêmeo Cognitivo + Generativo}
-    A união dos dois modelos cria uma infraestrutura completa e robusta (sem alucinações de dados) \cite{mateev2023cdt}:
-    \vspace{0.4em}
-    \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \begin{block}{O Cérebro Racional (CDT \cite{zheng2022emergence})}
-                \footnotesize
-                \begin{itemize}
-                    \item Baseado em \textbf{Grafos de Conhecimento}.
-                    \item Garante que a IA respeite as regras físicas e lógicas exatas do mundo real.
-                    \item Sem alucinações matemáticas ou operacionais.
-                \end{itemize}
-            \end{block}
-        \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{exampleblock}{A Interface Conversacional (GenAI \cite{xia2024aas})}
-                \footnotesize
-                \begin{itemize}
-                    \item Baseada em \textbf{LLMs e Agentes}.
-                    \item Traduz comandos de linguagem natural em consultas formais ao Grafo de Conhecimento.
-                    \item Facilita a interação de operadores humanos não técnicos.
-                \end{itemize}
-            \end{exampleblock}
-        \end{column}
-    \end{columns}
 \end{frame}
 
 
@@ -313,13 +323,13 @@ Caio Lacoste \and Pedro Ivo %
 \end{frame}
 
 \begin{frame}
-\begin{itemize}
-\begin{exampleblock}{O que é monitorado e calculado (lista fechada)}
-\item \textbf{Séries temporais}: P/T de fundo (PDG), P/T na árvore (TPT), status/posição de válvulas, pressão da linha de controle do SCM, vazões/P/T de topside
-\item \textbf{Dados contextuais}: projeto do poço, relatórios de inspeção e intervenção, informações de handover
-\item \textbf{Calculado pelo twin}: perfis P/T ao longo do poço, APB por anular, fatores de segurança estruturais -- inclusive como instrumentação \textit{virtual} em poços sem PDG
+    \begin{exampleblock}{O que é monitorado e calculado (lista fechada)}
+        \begin{itemize}
+            \item \textbf{Séries temporais}: P/T de fundo (PDG), P/T na árvore (TPT), status/posição de válvulas, pressão da linha de controle do SCM, vazões/P/T de topside
+            \item \textbf{Dados contextuais}: projeto do poço, relatórios de inspeção e intervenção, informações de handover
+            \item \textbf{Calculado pelo twin}: perfis P/T ao longo do poço, APB por anular, fatores de segurança estruturais -- inclusive como instrumentação \textit{virtual} em poços sem PDG
+        \end{itemize}
     \end{exampleblock}
-\end{itemize}
 \end{frame}
 
 
