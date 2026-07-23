@@ -1,0 +1,24 @@
+# LaTeX build artifacts
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.vrb
+*.bbl
+*.blg
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+*.run.xml
+*.bcf
+*.pdf
+
+# Python scratch files
+/scratch/
+search_pdf.py
+search_all_pdf.py
+search_standards.py
+extract_pages.py
+extract_page_198.py
