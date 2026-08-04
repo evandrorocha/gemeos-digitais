@@ -1,0 +1,6 @@
+[submodule "dados-gemeos-digitais"]
+	path = dados-gemeos-digitais
+	url = https://git@git.overleaf.com/6a6254a31808b29f7bfde27b
+[submodule "modelos-gemeos-digitais"]
+	path = modelos-gemeos-digitais
+	url = https://git@git.overleaf.com/6a6cb123a6731e2b77c9c767
