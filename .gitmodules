@@ -4,3 +4,9 @@
 [submodule "modelos-gemeos-digitais"]
 	path = modelos-gemeos-digitais
 	url = https://git@git.overleaf.com/6a6cb123a6731e2b77c9c767
+[submodule "governanca-gemeos-digitais"]
+	path = governanca-gemeos-digitais
+	url = https://git@git.overleaf.com/6a753bc3c7e0ec6cda56837e
+[submodule "regulamentacoes-gemeos-digitais"]
+	path = regulamentacoes-gemeos-digitais
+	url = https://git.overleaf.com/6a5975ef48bf21a3d958536b
