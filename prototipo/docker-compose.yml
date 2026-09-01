@@ -1,0 +1,24 @@
+services:
+  # Serviço 1: Gêmeo Digital & Dashboard do Operador
+  gemeo-digital:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gemeo_digital_dashboard
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      # Conecta ao servidor CODESYS OPC UA rodando no host Windows
+      - OPCUA_SERVER_URL=opc.tcp://host.docker.internal:4840
+      - DEBOUNCE_TIME_MS=50
+      - TIMEOUT_CONVEYOR_ENTRY_SEC=4.0
+    extra_hosts:
+      # Mapeia host.docker.internal para o IP do computador local
+      - "host.docker.internal:host-gateway"
+    networks:
+      - digital-twin-net
+
+networks:
+  digital-twin-net:
+    driver: bridge

@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Symbolconfiguration xmlns="http://www.3s-software.com/schemas/Symbolconfiguration.xsd">
+  <Header>
+    <Version>3.5.14.0</Version>
+    <SymbolConfigObject version="4.7.0.0" runtimeid="3.5.22.10" libversion="4.6.0.0" compiler="3.5.22.0" lmm="3.5.22.10" profile="CODESYS V3.5 SP22 Patch 1+" settings="SupportOPCUA, LayoutCalculator=OptimizedClientSideLayoutCalculator" />
+    <ProjectInfo name="SortingByHeight_Basic" devicename="Device" appname="Application" />
+  </Header>
+  <TypeList>
+    <TypeSimple name="T_BOOL" size="1" swapsize="0" typeclass="Bool" iecname="BOOL" />
+    <TypeSimple name="T_INT" size="2" swapsize="2" typeclass="Int" iecname="INT" />
+    <TypeSimple name="T_WORD" size="2" swapsize="2" typeclass="Word" iecname="WORD" />
+    <TypeUserDef name="T_CTU" size="8" nativesize="24" typeclass="Userdef" pouclass="FUNCTION_BLOCK" iecname="CTU">
+      <UserDefElement iecname="CU" type="T_BOOL" byteoffset="0" vartype="VAR_INPUT" access="ReadWrite" />
+      <UserDefElement iecname="RESET" type="T_BOOL" byteoffset="1" vartype="VAR_INPUT" access="ReadWrite" />
+      <UserDefElement iecname="PV" type="T_WORD" byteoffset="2" vartype="VAR_INPUT" access="ReadWrite" />
+      <UserDefElement iecname="Q" type="T_BOOL" byteoffset="4" vartype="VAR_OUTPUT" access="ReadWrite" />
+      <UserDefElement iecname="CV" type="T_WORD" byteoffset="6" vartype="VAR_OUTPUT" access="ReadWrite" />
+    </TypeUserDef>
+  </TypeList>
+  <NodeList>
+    <Node name="Application">
+      <Node name="PLC_PRG">
+        <Node name="alto" type="T_BOOL" access="ReadWrite" />
+        <Node name="atLeftEntry" type="T_BOOL" access="ReadWrite" />
+        <Node name="atLeftExit" type="T_BOOL" access="ReadWrite" />
+        <Node name="atRightEntry" type="T_BOOL" access="ReadWrite" />
+        <Node name="atRightExit" type="T_BOOL" access="ReadWrite" />
+        <Node name="aux0" type="T_BOOL" access="ReadWrite" />
+        <Node name="contador" type="T_INT" access="ReadWrite" />
+        <Node name="conveyorEntry" type="T_BOOL" access="ReadWrite" />
+        <Node name="conveyorLeft" type="T_BOOL" access="ReadWrite" />
+        <Node name="conveyorRight" type="T_BOOL" access="ReadWrite" />
+        <Node name="CTU_0" type="T_CTU" access="ReadWrite" />
+        <Node name="desligar" type="T_BOOL" access="ReadWrite" />
+        <Node name="highSensor" type="T_BOOL" access="ReadWrite" />
+        <Node name="load" type="T_BOOL" access="ReadWrite" />
+        <Node name="loaded" type="T_BOOL" access="ReadWrite" />
+        <Node name="p1" type="T_BOOL" access="ReadWrite" />
+        <Node name="p10" type="T_BOOL" access="ReadWrite" />
+        <Node name="p11" type="T_BOOL" access="ReadWrite" />
+        <Node name="p12" type="T_BOOL" access="ReadWrite" />
+        <Node name="p13" type="T_BOOL" access="ReadWrite" />
+        <Node name="p14" type="T_BOOL" access="ReadWrite" />
+        <Node name="p15" type="T_BOOL" access="ReadWrite" />
+        <Node name="p16" type="T_BOOL" access="ReadWrite" />
+        <Node name="p2" type="T_BOOL" access="ReadWrite" />
+        <Node name="p3" type="T_BOOL" access="ReadWrite" />
+        <Node name="p4" type="T_BOOL" access="ReadWrite" />
+        <Node name="p5" type="T_BOOL" access="ReadWrite" />
+        <Node name="p6" type="T_BOOL" access="ReadWrite" />
+        <Node name="p7" type="T_BOOL" access="ReadWrite" />
+        <Node name="p8" type="T_BOOL" access="ReadWrite" />
+        <Node name="p9" type="T_BOOL" access="ReadWrite" />
+        <Node name="palletSensor" type="T_BOOL" access="ReadWrite" />
+        <Node name="reset" type="T_BOOL" access="ReadWrite" />
+        <Node name="start" type="T_BOOL" access="ReadWrite" />
+        <Node name="stop" type="T_BOOL" access="ReadWrite" />
+        <Node name="t1" type="T_BOOL" access="ReadWrite" />
+        <Node name="t10" type="T_BOOL" access="ReadWrite" />
+        <Node name="t11" type="T_BOOL" access="ReadWrite" />
+        <Node name="t12" type="T_BOOL" access="ReadWrite" />
+        <Node name="t13" type="T_BOOL" access="ReadWrite" />
+        <Node name="t14" type="T_BOOL" access="ReadWrite" />
+        <Node name="t15" type="T_BOOL" access="ReadWrite" />
+        <Node name="t16" type="T_BOOL" access="ReadWrite" />
+        <Node name="t17" type="T_BOOL" access="ReadWrite" />
+        <Node name="t2" type="T_BOOL" access="ReadWrite" />
+        <Node name="t3" type="T_BOOL" access="ReadWrite" />
+        <Node name="t4" type="T_BOOL" access="ReadWrite" />
+        <Node name="t5" type="T_BOOL" access="ReadWrite" />
+        <Node name="t6" type="T_BOOL" access="ReadWrite" />
+        <Node name="t7" type="T_BOOL" access="ReadWrite" />
+        <Node name="t8" type="T_BOOL" access="ReadWrite" />
+        <Node name="t9" type="T_BOOL" access="ReadWrite" />
+        <Node name="transferLeft" type="T_BOOL" access="ReadWrite" />
+        <Node name="transferRight" type="T_BOOL" access="ReadWrite" />
+      </Node>
+    </Node>
+  </NodeList>
+</Symbolconfiguration>

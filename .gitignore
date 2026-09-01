@@ -1,3 +1,4 @@
+# LaTeX Build Artifacts
 *.log
 *.aux
 *.out
@@ -5,3 +6,34 @@
 *.synctex.gz
 *.fls
 *.fdb_latexmk
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Virtual Environments
+.venv/
+env/
+venv/
+ENV/
+
+# CODESYS Temp Artifacts
+*.~u
+*.bootinfo
+*.bootinfo_guids
+*.compileinfo
+
+# Operating System & IDE Artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Arquitetura do Gêmeo Digital</title>
+<style>
+    @page {
+        size: A4;
+        margin: 15mm 15mm 15mm 15mm;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        line-height: 1.55;
+        color: #1e293b;
+        background-color: #ffffff;
+        padding: 0;
+    }
+    h1 {
+        color: #1e3a8a;
+        font-size: 22pt;
+        border-bottom: 2px solid #1e3a8a;
+        padding-bottom: 6px;
+        margin-top: 0;
+        margin-bottom: 12px;
+    }
+    h2 {
+        color: #0d9488;
+        font-size: 15pt;
+        border-bottom: 1px solid #cbd5e1;
+        padding-bottom: 4px;
+        margin-top: 24px;
+        margin-bottom: 10px;
+    }
+    h3 {
+        color: #334155;
+        font-size: 12pt;
+        margin-top: 18px;
+        margin-bottom: 8px;
+    }
+    p, li {
+        font-size: 10pt;
+        margin-bottom: 4px;
+    }
+    code {
+        background-color: #f1f5f9;
+        color: #0f172a;
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-family: 'Consolas', monospace;
+        font-size: 9pt;
+    }
+    pre {
+        background-color: #0f172a;
+        color: #f8fafc;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-family: 'Consolas', monospace;
+        font-size: 8.5pt;
+        line-height: 1.4;
+        margin: 10px 0;
+    }
+    pre code {
+        background-color: transparent;
+        color: inherit;
+        padding: 0;
+    }
+    hr {
+        border: 0;
+        height: 1px;
+        background: #e2e8f0;
+        margin: 16px 0;
+    }
+    ul, ol {
+        padding-left: 20px;
+        margin-top: 4px;
+        margin-bottom: 8px;
+    }
+    li {
+        margin-bottom: 3px;
+    }
+    .figure-box {
+        text-align: center;
+        margin: 16px 0;
+        page-break-inside: avoid;
+    }
+    .figure-box img {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.06);
+    }
+    .caption {
+        color: #64748b;
+        font-style: italic;
+        font-size: 8.5pt;
+        display: block;
+        margin-top: 6px;
+    }
+</style>
+</head>
+<body>
+<h1>🏛️ Arquitetura do Protótipo de Gêmeo Digital Industrial</h1><p></p>Este documento apresenta o detalhamento técnico e conceitual da arquitetura do <strong>Gêmeo Digital (Digital Twin)</strong> para a linha de separação de caixas (<em>Sorting by Height</em>). <p></p>A implementação foi estruturada com base nas normas internacionais:
+<em> <strong>ISO 23247:2021</strong> (</em>Automation systems and integration — Digital twin framework for manufacturing*).
+<em> <strong>ISO/IEC 30173:2025</strong> (</em>Digital twin — Concepts, terminology and governance framework*).
+<em> <strong>IEC 62541</strong> (</em>OPC Unified Architecture*).
+<em> <strong>Plataforma Indústria 4.0 / Eclipse BaSyx</strong> (</em>Asset Administration Shell - AAS*).<p></p><hr><p></p><h2>1. Visão Geral da Arquitetura em 3 Camadas</h2><p></p>A arquitetura segue o modelo de 3 camadas da norma <strong>ISO 23247</strong>, complementada pela camada de conteinerização para portabilidade:<p></p><div class="figure-box"><img src="file:///C:/Users/ev_ro/git/gemeos-digitais/prototipo/docs/img/arquitetura_3_camadas.png" alt="Arquitetura em 3 Camadas do Gêmeo Digital"><br><span class="caption">Arquitetura em 3 Camadas do Gêmeo Digital</span></div><p></p><hr><p></p><h2>2. Detalhamento dos Módulos e Funcionamento</h2><p></p><h3>2.1 Camada 1: Ativo Físico & Automação (<code>prototipo/factoryio/</code>)</h3>
+<li><strong>Propósito:</strong> Representar o mundo físico real.</li>
+<li><strong>Componentes:</strong></li>
+  * <strong>Factory I/O (<code>Sorting by Height - Basic</code>):</strong> Simula a física 3D das esteiras rolantes, sensores ópticos de presença (<code>palletSensor</code>), sensor óptico de altura (<code>highSensor</code>), mesa de transferência com correntes transversais (<code>transferLeft</code>, <code>transferRight</code>) e esteiras de saída.
+  * <strong>CODESYS Control Win V3 x64 (<code>SortingByHeight_Basic.project</code>):</strong> SoftPLC que executa a lógica de controle programada em linguagem Ladder.
+  <em> <strong>Servidor OPC UA:</strong> Expõe as 53 variáveis de processo (<code>PLC_PRG.</em></code>) na porta 4840 para leitura e escrita externa com acesso anônimo autenticado.<p></p><hr><p></p><h3>2.2 Camada 2: Núcleo do Gêmeo Digital (<code>prototipo/gemeo-digital/</code>)</h3><p></p>#### A. Sanitização de Dados e Governança (<code>data_sanitizer.py</code>):
+Em conformidade com a norma <strong>ISO/IEC 30173</strong>, dados industriais brutos não devem alimentar modelos de tomada de decisão sem higienização prévia (<em>evitar o problema "Garbage In, Garbage Out"</em>):
+<li><strong>Debouncing de 50 ms:</strong> Elimina repiques mecânicos e trepidações ópticas dos sensores de presença que poderiam disparar falsas contagens de caixas.</li>
+<li><strong>Validação de Qualidade:</strong> Verifica se o status de comunicação da tag OPC UA é estritamente <code>GOOD</code>.</li>
+<li><strong>Linhagem de Dados (<em>Data Lineage</em>):</strong> Transforma o dado bruto em um registro auditável contendo carimbo de data/hora (UTC ISO 8601), origem da leitura, tipo de dado estrito e flag de validade.</li><p></p>#### B. Motor de Diagnóstico por Rede de Petri (<code>petri_engine.py</code>):
+Enquanto o CLP usa a Rede de Petri apenas para mover os motores, o <strong>Gêmeo Digital utiliza a Rede de Petri como um modelo formal de fiscalização e auditoria</strong>:
+<li><strong>Lugares ($p_1 \dots p_{16}$):</strong> Representam os estados possíveis da esteira (ex: $p_1$ Repouso, $p_2$ Caixa em trânsito de entrada, $p_5$ Caixa alta identificada, $p_7$ Desvio para a esquerda ativo).</li>
+<li><strong>Transições ($t_1 \dots t_{17}$):</strong> Disparadas pelos eventos sanitizados dos sensores da planta.</li>
+<li><strong>Regras de Detecção de Anomalias:</strong></li>
+  <em> 🔴 <strong>Sensor de Altura Quebrado (</em>Stuck OFF*):</strong> Se uma caixa atinge o sensor da mesa (<code>loaded = True</code>) sem que o sensor de altura tenha registrado sinal prévio durante o estado $p_2$ $\rightarrow$ <strong>Dispara Anomalia Crítica de Transição Proibida</strong>.
+  <em> 🔴 <strong>Sensor de Presença Travado (</em>Stuck ON*):</strong> Se o <code>palletSensor</code> permanecer em nível lógico alto por mais de 2.5 segundos enquanto a esteira está ligada $\rightarrow$ <strong>Dispara Alerta de Risco de Engavetamento</strong>.
+  * 🔴 <strong>Timeout de Transporte (Caixa Engavetada / Motor Travado):</strong> Se a esteira de entrada permanecer ligada por mais de 4.0 segundos sem que a caixa atinja o próximo sensor $\rightarrow$ <strong>Dispara Parada de Segurança por Bloqueio de Linha</strong>.<p></p>#### C. Casca Administrativa do Ativo - AAS (<code>aas_model.py</code>):
+Implementa a representação do ativo conforme o padrão <strong>Eclipse BaSyx</strong> da Indústria 4.0:
+<li><strong>Submodelo <code>TechnicalIdentification</code>:</strong> Metadados do equipamento, número de série, fabricante, normas de governança aplicadas (ISO 30173 / ISO 23247).</li>
+<li><strong>Submodelo <code>OperationalData</code>:</strong> Variáveis de telemetria em tempo real (estados das esteiras, sensores e contador de caixas).</li>
+<li><strong>Submodelo <code>HealthAndDiagnostics</code>:</strong> Score de integridade (<code>HEALTHY</code> ou <code>CRITICAL_FAULT</code>), histórico de anomalias ativas e carimbo de tempo do último incidente.</li>
+<li><strong>Exportação:</strong> Permite exportar toda a casca administrativa no formato oficial JSON para integração com ecossistemas BaSyx.</li><p></p>#### D. Conector OPC UA Bidirecional (<code>opc_connector.py</code>):
+<li>Utiliza a biblioteca <code>asyncua</code> para criar uma conexão assíncrona de alta performance.</li>
+<em> Implementa o padrão </em>Observer / Subscription* (<code>SAMPLING_RATE_MS = 100ms</code>).
+<li><strong>Ação Autônoma de Segurança:</strong> Ao receber uma notificação de anomalia crítica do <code>petri_engine</code>, o conector envia imediatamente o comando <code>desligar = True</code> e <code>stop = True</code> para o CLP, parando a linha física antes que ocorra quebra de produto ou engavetamento.</li><p></p><hr><p></p><h3>2.3 Camada 3: Aplicação Supervisória do Usuário (<code>prototipo/dashboard/</code>)</h3>
+<li><strong>Interface Web em Streamlit (<code>app.py</code>):</strong></li>
+  * <strong>Header e KPIs de Governança:</strong> Status de saúde do ativo em tempo real, percentual de qualidade dos dados sanitizados (100%), total de eventos processados e estado ativo da Rede de Petri.
+  * <strong>Sinótico 2D da Linha:</strong> Visualização gráfica com LEDs dinâmicos (verde/cinza) indicando o estado de cada sensor óptico e esteira.
+  * <strong>Grafo Interativo da Rede de Petri:</strong> Diagrama de estados que ilumina o nó ativo ($p_1, p_2 \dots$) conforme a caixa se move.
+  * <strong>Tabela de Auditoria (ISO/IEC 30173):</strong> Histórico completo de eventos higienizados, latência e origem dos dados.
+  * <strong>Painel de Controle e Injeção de Falhas:</strong> Botões para o operador iniciar a linha, aplicar Parada de Emergência, resetar falhas e injetar anomalias sintéticas para fins de auditoria e demonstração.<p></p><hr><p></p><h2>3. Fluxo de Vida: Operação Normal vs. Detecção de Falha</h2><p></p><div class="figure-box"><img src="file:///C:/Users/ev_ro/git/gemeos-digitais/prototipo/docs/img/fluxo_sequencia.png" alt="Fluxo de Vida: Operação Normal vs. Detecção de Falha e Recuperação"><br><span class="caption">Fluxo de Vida: Operação Normal vs. Detecção de Falha e Recuperação</span></div><p></p><hr><p></p><h2>4. Estrutura de Arquivos do Projeto</h2><p></p><pre><code>prototipo/
+├── Dockerfile                      # Definição do container Docker Python
+├── docker-compose.yml              # Orquestração do ambiente conteinerizado
+├── README.md                       # Guia rápido de instalação e comandos
+├── requirements.txt                # Dependências do ecossistema Python
+│
+├── docs/                           # Documentações e Especificações
+│   ├── ARQUITETURA.md              # Este documento de especificação arquitetural
+│   ├── ARQUITETURA.pdf             # Versão PDF formatada para entrega
+│   ├── especificacao-gemeo-digital.pdf
+│   └── img/                        # Diagramas em alta resolução
+│       ├── arquitetura_3_camadas.png
+│       └── fluxo_sequencia.png
+│
+├── factoryio/                      # Camada 1: Ativo Físico
+│   ├── SortingByHeight_Basic.project  # Projeto CODESYS
+│   ├── SortingByHeight_Basic.xml      # Símbolos exportados
+│   ├── index.html                     # Manual de tags da cena
+│   └── monitoramentoOPCUA.py          # Script original do colega
+│
+├── gemeo-digital/                  # Camada 2: Núcleo do Gêmeo Digital
+│   ├── config.py                      # Configurações de conexão e tempos
+│   ├── data_sanitizer.py              # Sanitização, debouncing e linhagem ISO 30173
+│   ├── petri_engine.py                # Máquina de estados da Rede de Petri e regras de falha
+│   ├── aas_model.py                   # Modelo de casca administrativa (Eclipse BaSyx)
+│   └── opc_connector.py               # Conector OPC UA assíncrono e controle autônomo
+│
+└── dashboard/                      # Camada 3: Aplicação do Usuário
+    └── app.py                         # Interface Web Streamlit</code></pre><p></p><hr><p></p><h2>5. Conclusão</h2><p></p>Esta arquitetura cumpre integralmente os requisitos de um <strong>Gêmeo Digital de Nível 4 (Inteligente e Autônomo)</strong> conforme a literatura técnica:
+<li><strong>Representação Digital Padronizada (AAS / BaSyx):</strong> O ativo físico possui uma identidade digital estruturada e interoperável.</li>
+<li><strong>Sincronismo Bidirecional de Alta Velocidade (OPC UA):</strong> Leitura de eventos em tempo real e escrita de comandos de emergência.</li>
+<li><strong>Governança e Confiabilidade dos Dados (ISO/IEC 30173):</strong> Sanitização prévia com eliminação de ruídos e auditoria de qualidade.</li>
+<li><strong>Capacidade de Ação Autônoma e Diagnóstico (Rede de Petri):</strong> O sistema não é apenas um visualizador passivo, mas atua como um sistema supervisório capaz de interromper a planta diante de desvios operacionais.</li>
+
+</body>
+</html>
