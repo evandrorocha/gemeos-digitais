@@ -8,7 +8,7 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Callable, Any
-from asyncua import Client, ua
+from asyncua import Client, Node, ua
 from config import OPCUA_SERVER_URL, PLC_PRG_NODE_ID, SAMPLING_RATE_MS
 from data_sanitizer import DataSanitizer, SanitizedEvent
 from petri_engine import PetriNetEngine, AnomalyReport
@@ -24,7 +24,7 @@ class SubscriptionHandler:
     def __init__(self, connector: "DigitalTwinConnector"):
         self.connector = connector
 
-    def datachange_notification(self, node: ua.Node, val: Any, data: Any):
+    def datachange_notification(self, node: Node, val: Any, data: Any):
         try:
             # Extrai o nome da tag do BrowseName ou NodeId
             node_str = str(node.nodeid.Identifier)
@@ -50,7 +50,7 @@ class DigitalTwinConnector:
         self.aas = AssetAdministrationShell()
         self.is_connected = False
         self._subscription = None
-        self._nodes_cache: Dict[str, ua.Node] = {}
+        self._nodes_cache: Dict[str, Node] = {}
         self.on_state_change_callbacks: List[Callable[[Dict[str, Any]], None]] = []
 
     def register_callback(self, callback: Callable[[Dict[str, Any]], None]):

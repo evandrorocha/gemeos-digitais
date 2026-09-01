@@ -8,11 +8,17 @@ services:
     restart: unless-stopped
     ports:
       - "8501:8501"
+    # Mapeamento de volumes para Hot Reloading (qualquer edição no código reflete na hora)
+    volumes:
+      - ./gemeo-digital:/app/gemeo-digital
+      - ./dashboard:/app/dashboard
     environment:
       # Conecta ao servidor CODESYS OPC UA rodando no host Windows
       - OPCUA_SERVER_URL=opc.tcp://host.docker.internal:4840
       - DEBOUNCE_TIME_MS=50
-      - TIMEOUT_CONVEYOR_ENTRY_SEC=4.0
+      - MAX_PRESENCE_TIME_SEC=4.5
+      - TIMEOUT_CONVEYOR_ENTRY_SEC=8.0
+      - TIMEOUT_TRANSFER_SEC=4.5
     extra_hosts:
       # Mapeia host.docker.internal para o IP do computador local
       - "host.docker.internal:host-gateway"
