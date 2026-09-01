@@ -170,15 +170,14 @@ if health == "CRITICAL_FAULT":
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
-    st.markdown("""
+    cls_status = "status-critical" if health == "CRITICAL_FAULT" else "status-healthy"
+    txt_status = "🔴 PARADA DE EMERGÊNCIA" if health == "CRITICAL_FAULT" else "🟢 OPERACIONAL"
+    st.markdown(f"""
     <div class="metric-card">
         <div style="color: #9ca3af; font-size: 0.9rem;">STATUS DE SAÚDE</div>
-        <div class="{}">{}</div>
+        <div class="{cls_status}">{txt_status}</div>
     </div>
-    """.format(
-        "status-critical" if health == "CRITICAL_FAULT" else "status-healthy",
-        "🔴 PARADA DE EMERGÊNCIA" if health == "CRITICAL_FAULT" else "🟢 OPERACIONAL"
-    ), unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 with col2:
     st.markdown(f"""
@@ -227,49 +226,41 @@ with tab1:
     
     with col_s1:
         st.markdown("### 🟢 Sensores de Entrada & Altura")
-        st.markdown(f"- **Sensor de Presença (palletSensor):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("palletSensor") else "sensor-off",
-            "ACIONADO (1)" if tags.get("palletSensor") else "DESLIGADO (0)"
-        ), unsafe_allow_html=True)
+        cls_pallet = "sensor-on" if tags.get("palletSensor") else "sensor-off"
+        txt_pallet = "ACIONADO (1)" if tags.get("palletSensor") else "DESLIGADO (0)"
+        st.markdown(f"- **Sensor de Presença (palletSensor):** <span class='{cls_pallet}'>{txt_pallet}</span>", unsafe_allow_html=True)
         
-        st.markdown(f"- **Sensor de Altura (highSensor):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("highSensor") else "sensor-off",
-            "CAIXA ALTA (1)" if tags.get("highSensor") else "CAIXA BAIXA (0)"
-        ), unsafe_allow_html=True)
+        cls_high = "sensor-on" if tags.get("highSensor") else "sensor-off"
+        txt_high = "CAIXA ALTA (1)" if tags.get("highSensor") else "CAIXA BAIXA (0)"
+        st.markdown(f"- **Sensor de Altura (highSensor):** <span class='{cls_high}'>{txt_high}</span>", unsafe_allow_html=True)
 
-        st.markdown(f"- **Sensor da Mesa (loaded):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("loaded") else "sensor-off",
-            "CARGA POSICIONADA (1)" if tags.get("loaded") else "LIVRE (0)"
-        ), unsafe_allow_html=True)
+        cls_loaded = "sensor-on" if tags.get("loaded") else "sensor-off"
+        txt_loaded = "CARGA POSICIONADA (1)" if tags.get("loaded") else "LIVRE (0)"
+        st.markdown(f"- **Sensor da Mesa (loaded):** <span class='{cls_loaded}'>{txt_loaded}</span>", unsafe_allow_html=True)
 
     with col_s2:
         st.markdown("### 🔴 Motores & Esteiras")
-        st.markdown(f"- **Esteira de Entrada (conveyorEntry):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("conveyorEntry") else "sensor-off",
-            "RODANDO ▶" if tags.get("conveyorEntry") else "PARADA ⏹"
-        ), unsafe_allow_html=True)
+        cls_entry = "sensor-on" if tags.get("conveyorEntry") else "sensor-off"
+        txt_entry = "RODANDO ▶" if tags.get("conveyorEntry") else "PARADA ⏹"
+        st.markdown(f"- **Esteira de Entrada (conveyorEntry):** <span class='{cls_entry}'>{txt_entry}</span>", unsafe_allow_html=True)
 
-        st.markdown(f"- **Transferência Esquerda (transferLeft):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("transferLeft") else "sensor-off",
-            "ATIVO ⬅" if tags.get("transferLeft") else "PARADO"
-        ), unsafe_allow_html=True)
+        cls_tleft = "sensor-on" if tags.get("transferLeft") else "sensor-off"
+        txt_tleft = "ATIVO ⬅" if tags.get("transferLeft") else "PARADO"
+        st.markdown(f"- **Transferência Esquerda (transferLeft):** <span class='{cls_tleft}'>{txt_tleft}</span>", unsafe_allow_html=True)
 
-        st.markdown(f"- **Transferência Direita (transferRight):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("transferRight") else "sensor-off",
-            "ATIVO ➡" if tags.get("transferRight") else "PARADO"
-        ), unsafe_allow_html=True)
+        cls_tright = "sensor-on" if tags.get("transferRight") else "sensor-off"
+        txt_tright = "ATIVO ➡" if tags.get("transferRight") else "PARADO"
+        st.markdown(f"- **Transferência Direita (transferRight):** <span class='{cls_tright}'>{txt_tright}</span>", unsafe_allow_html=True)
 
     with col_s3:
         st.markdown("### 🏁 Esteiras de Saída")
-        st.markdown(f"- **Saída Esquerda (conveyorLeft):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("conveyorLeft") else "sensor-off",
-            "RODANDO ▶" if tags.get("conveyorLeft") else "PARADA"
-        ), unsafe_allow_html=True)
+        cls_cleft = "sensor-on" if tags.get("conveyorLeft") else "sensor-off"
+        txt_cleft = "RODANDO ▶" if tags.get("conveyorLeft") else "PARADA"
+        st.markdown(f"- **Saída Esquerda (conveyorLeft):** <span class='{cls_cleft}'>{txt_cleft}</span>", unsafe_allow_html=True)
 
-        st.markdown(f"- **Saída Direita (conveyorRight):** <span class='{}'>{}</span>".format(
-            "sensor-on" if tags.get("conveyorRight") else "sensor-off",
-            "RODANDO ▶" if tags.get("conveyorRight") else "PARADA"
-        ), unsafe_allow_html=True)
+        cls_cright = "sensor-on" if tags.get("conveyorRight") else "sensor-off"
+        txt_cright = "RODANDO ▶" if tags.get("conveyorRight") else "PARADA"
+        st.markdown(f"- **Saída Direita (conveyorRight):** <span class='{cls_cright}'>{txt_cright}</span>", unsafe_allow_html=True)
 
         st.markdown(f"- **Contador de Peças:** `{tags.get('contador', 0)} caixas`")
 
