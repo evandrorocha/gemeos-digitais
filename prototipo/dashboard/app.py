@@ -349,7 +349,7 @@ def render_live_dashboard():
         if recent_events:
             df_events = pd.DataFrame(recent_events)
             cols_to_use = [c for c in ["timestamp_iso", "tag_name", "value", "quality", "source", "is_valid"] if c in df_events.columns]
-            df_display = df_events[cols_to_use]
+            df_display = df_events[cols_to_use].astype(str)
             st.dataframe(df_display, use_container_width=True, height=300)
         else:
             st.info("Nenhum evento registrado no histórico recente.")

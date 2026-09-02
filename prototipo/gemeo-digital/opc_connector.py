@@ -112,6 +112,43 @@ class DigitalTwinConnector:
         await self._subscription.subscribe_data_change(tags_to_subscribe)
         logger.info(f"Subscrição ativada para {len(tags_to_subscribe)} tags.")
 
+        # Auto-Higienização e Inicialização Segura do CLP
+        logger.info("🔧 Executando auto-higienização da Rede de Petri no CLP...")
+        await self.auto_initialize_plc()
+
+    async def auto_initialize_plc(self):
+        """Garante que o CLP inicialize em estado limpo e pronto para rodar sem travas residuais."""
+        try:
+            # 1. Configura a meta do contador CTU para não desarmar a linha por meta de produção zerada
+            try:
+                node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
+                await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
+                node_rst = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.RESET")
+                await node_rst.write_value(ua.DataValue(ua.Variant(True, ua.VariantType.Boolean)))
+                await asyncio.sleep(0.2)
+                await node_rst.write_value(ua.DataValue(ua.Variant(False, ua.VariantType.Boolean)))
+            except Exception as e:
+                logger.debug(f"Aviso ao inicializar CTU_0: {e}")
+
+            await self.write_tag("desligar", False)
+            await self.write_tag("stop", False)
+            await self.write_tag("reset", True)
+            await asyncio.sleep(1.0)
+            await self.write_tag("reset", False)
+            await self.write_tag("desligar", False)
+
+            for p in ["p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
+                await self.write_tag(p, False)
+            for tag in ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]:
+                await self.write_tag(tag, False)
+            await self.write_tag("p1", True)
+            await self.write_tag("p14", True)
+            await self.write_tag("p16", True)
+            self.petri_engine.clear_anomalies()
+            logger.info("✅ CLP auto-inicializado com sucesso em estado de prontidão (p1=True).")
+        except Exception as e:
+            logger.warning(f"Aviso na auto-inicialização do CLP: {e}")
+
     async def write_tag(self, tag_name: str, value: Any):
         """Escreve um valor em uma tag no CODESYS via OPC UA."""
         if not self.is_connected or not self.client:
@@ -147,20 +184,65 @@ class DigitalTwinConnector:
         await self.write_tag("stop", True)
 
     async def reset_plant(self):
-        """Envia o comando de reset para restabelecer a operação normal."""
-        logger.info("🔄 [RESET] Enviando comando de reset para a planta...")
+        """Envia o comando de reset para restabelecer a operação normal e a marcação inicial de Petri."""
+        logger.info("🔄 [RESET] Enviando comando de reset e restaurando marcação inicial no CLP...")
         self.petri_engine.clear_anomalies()
+        
+        # 1. Configura a meta do contador CTU
+        try:
+            node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
+            await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
+            node_rst = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.RESET")
+            await node_rst.write_value(ua.DataValue(ua.Variant(True, ua.VariantType.Boolean)))
+            await asyncio.sleep(0.2)
+            await node_rst.write_value(ua.DataValue(ua.Variant(False, ua.VariantType.Boolean)))
+        except Exception:
+            pass
+
+        # 2. Desarma as travas de segurança
         await self.write_tag("desligar", False)
         await self.write_tag("stop", False)
+
+        # 3. Envia pulso de reset físico longo (1.0s) para o circuito Ladder do CLP
         await self.write_tag("reset", True)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(1.0)
         await self.write_tag("reset", False)
+        await self.write_tag("desligar", False)
+
+        # 4. Restaura a marcação inicial da Rede de Petri (p1, p14, p16 ativos) e limpa sinais residuais
+        for p in ["p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
+            await self.write_tag(p, False)
+        for tag in ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]:
+            await self.write_tag(tag, False)
+        await self.write_tag("p1", True)
+        await self.write_tag("p14", True)
+        await self.write_tag("p16", True)
 
     async def start_plant(self):
-        """Envia o pulso de START para a planta."""
-        logger.info("▶️ [START] Enviando pulso de partida...")
+        """Envia o pulso de START para a planta garantindo transição limpa para p2."""
+        logger.info("▶️ [START] Liberando travas e iniciando movimento da esteira...")
+        self.petri_engine.clear_anomalies()
+        
+        # Configura a meta do contador CTU caso tenha resetado
+        try:
+            node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
+            await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
+        except Exception:
+            pass
+
+        await self.write_tag("desligar", False)
+        await self.write_tag("stop", False)
+        for p in ["p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
+            await self.write_tag(p, False)
+        for tag in ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]:
+            await self.write_tag(tag, False)
+        await self.write_tag("p1", False)
+        await self.write_tag("p2", True)
+        await self.write_tag("p14", True)
+        await self.write_tag("p16", True)
+
         await self.write_tag("start", True)
-        await asyncio.sleep(0.3)
+        await asyncio.sleep(0.4)
         await self.write_tag("start", False)
 
     def inject_fault(self, fault_type: str):

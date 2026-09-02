@@ -66,6 +66,7 @@ class PetriNetEngine:
         # Timers para detecção de anomalias
         self._conveyor_entry_start_time: Optional[float] = None
         self._pallet_sensor_start_time: Optional[float] = None
+        self._box_in_transit_start_time: Optional[float] = None
         self._transfer_start_time: Optional[float] = None
         self._high_sensor_triggered_for_current_pallet = False
 
@@ -97,16 +98,22 @@ class PetriNetEngine:
                 self._conveyor_entry_start_time = now
             else:
                 self._conveyor_entry_start_time = None
+                self._box_in_transit_start_time = None
 
         if tag == "palletSensor":
             if val:
                 self._pallet_sensor_start_time = now
+                self._box_in_transit_start_time = now  # Inicia rastreio da caixa em trânsito
                 self._high_sensor_triggered_for_current_pallet = False
             else:
                 self._pallet_sensor_start_time = None
 
         if tag == "highSensor" and val:
             self._high_sensor_triggered_for_current_pallet = True
+
+        if tag == "loaded" and val:
+            # Caixa chegou com sucesso na mesa transfer!
+            self._box_in_transit_start_time = None
 
         if tag in ["transferLeft", "transferRight"]:
             if val:
@@ -148,18 +155,18 @@ class PetriNetEngine:
 
         # ---------------------------------------------------------------------
         # REGRA 2: Detecção de Timeout de Transporte (Caixa Engavetada / Motor Travado)
-        # Se a esteira ligou mas a caixa não chegou na mesa no tempo limite
+        # Só monitora se uma caixa de fato entrou na linha (passou pelo palletSensor)
         # ---------------------------------------------------------------------
-        if self.tags.get("conveyorEntry") and self._conveyor_entry_start_time:
-            elapsed = now - self._conveyor_entry_start_time
-            # Se a esteira está ligada há muito tempo sem transicionar para loaded
+        if self._box_in_transit_start_time and self.tags.get("conveyorEntry"):
+            elapsed = now - self._box_in_transit_start_time
+            # Se a caixa entrou há mais tempo que o limite e ainda não atingiu a mesa:
             if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not self.tags.get("loaded"):
                 anomaly = AnomalyReport(
                     anomaly_id=f"ANOM_TIMEOUT_ENTRY_{int(now)}",
                     anomaly_type="TRANSPORT_TIMEOUT",
                     severity="CRITICAL",
                     component="conveyorEntry (Esteira de Entrada)",
-                    message=f"Tempo limite de transporte excedido ({elapsed:.1f}s > {TIMEOUT_CONVEYOR_ENTRY_SEC}s). Possível caixa engavetada!",
+                    message=f"Tempo limite de transporte da caixa excedido ({elapsed:.1f}s > {TIMEOUT_CONVEYOR_ENTRY_SEC}s). Caixa travou na esteira!",
                     timestamp_iso=now_iso,
                     timestamp_unix=now,
                     current_marking=current_active_places,
@@ -241,6 +248,7 @@ class PetriNetEngine:
         self.active_anomalies.clear()
         self._conveyor_entry_start_time = None
         self._pallet_sensor_start_time = None
+        self._box_in_transit_start_time = None
         self._transfer_start_time = None
 
     def get_status_summary(self) -> Dict[str, Any]:
