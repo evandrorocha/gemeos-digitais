@@ -132,10 +132,12 @@ with st.sidebar:
         if st.button("🔄 RESET", use_container_width=True):
             service.execute_async(dt.reset_plant())
             st.toast("Comando RESET enviado! Falhas limpas.", icon="🔄")
+            st.rerun()
 
     if st.button("🛑 PARADA DE EMERGÊNCIA", use_container_width=True):
         service.execute_async(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"))
         st.toast("PARADA DE EMERGÊNCIA ATIVADA!", icon="🛑")
+        st.rerun()
 
     st.markdown("---")
     st.subheader("🧪 Injeção de Falhas (Testes)")
@@ -144,14 +146,17 @@ with st.sidebar:
     if st.button("⚠️ Injetar: Sensor Altura Stuck OFF", use_container_width=True):
         dt.inject_fault("STUCK_OFF_HIGH_SENSOR")
         st.toast("Falha injetada: Sensor de Altura Stuck OFF!", icon="🚨")
+        st.rerun()
 
     if st.button("⚠️ Injetar: Presença Stuck ON", use_container_width=True):
         dt.inject_fault("STUCK_ON_PRESENCE")
         st.toast("Falha injetada: Sensor de Presença Stuck ON!", icon="🚨")
+        st.rerun()
 
     if st.button("⚠️ Injetar: Transição Proibida", use_container_width=True):
         dt.inject_fault("ILLEGAL_TRANSITION")
         st.toast("Falha injetada: Transição Ilegal de Estados!", icon="🚨")
+        st.rerun()
 
     st.markdown("---")
     st.caption("Padrão: ISO/IEC 30173 & ISO 23247")

@@ -19,10 +19,10 @@ PLC_PRG_NODE_ID = os.getenv(
 DEBOUNCE_TIME_MS = int(os.getenv("DEBOUNCE_TIME_MS", "50"))  # 50ms para eliminar repiques de sensores
 SAMPLING_RATE_MS = int(os.getenv("SAMPLING_RATE_MS", "100")) # Taxa de subscrição OPC UA
 
-# Parâmetros de Temporização Calibrados com a Física da Planta Factory I/O
-TIMEOUT_CONVEYOR_ENTRY_SEC = float(os.getenv("TIMEOUT_CONVEYOR_ENTRY_SEC", "8.0"))  # Viagem na esteira (normal ~5-6s)
-TIMEOUT_TRANSFER_SEC = float(os.getenv("TIMEOUT_TRANSFER_SEC", "4.5"))            # Desvio na mesa (normal ~2-2.5s)
-MAX_PRESENCE_TIME_SEC = float(os.getenv("MAX_PRESENCE_TIME_SEC", "4.5"))          # Passagem no sensor óptico (normal ~2.5-3.2s)
+# Parâmetros de Temporização Calibrados com a Física da Planta Factory I/O (com margem segura para gravação OBS)
+TIMEOUT_CONVEYOR_ENTRY_SEC = float(os.getenv("TIMEOUT_CONVEYOR_ENTRY_SEC", "15.0")) # Viagem na esteira
+TIMEOUT_TRANSFER_SEC = float(os.getenv("TIMEOUT_TRANSFER_SEC", "8.0"))              # Desvio na mesa
+MAX_PRESENCE_TIME_SEC = float(os.getenv("MAX_PRESENCE_TIME_SEC", "8.0"))            # Passagem no sensor óptico
 
 # Tags Críticas Monitoradas na Linha
 CRITICAL_TAGS = [

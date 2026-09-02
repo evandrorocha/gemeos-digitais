@@ -50,6 +50,7 @@ class DigitalTwinConnector:
         self.aas = AssetAdministrationShell()
         self.is_connected = False
         self._subscription = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._nodes_cache: Dict[str, Node] = {}
         self.on_state_change_callbacks: List[Callable[[Dict[str, Any]], None]] = []
 
@@ -74,7 +75,10 @@ class DigitalTwinConnector:
         # 4. Ação Autônoma do Gêmeo Digital: Se houver anomalia crítica, envia STOP de emergência
         if anomaly and anomaly.severity == "CRITICAL":
             logger.warning(f"🚨 ANOMALIA CRÍTICA DETECTADA: {anomaly.message}")
-            asyncio.create_task(self.emergency_stop(reason=anomaly.message))
+            if self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.emergency_stop(reason=anomaly.message), self._loop)
+            else:
+                asyncio.create_task(self.emergency_stop(reason=anomaly.message))
 
         # 5. Notifica ouvintes registrados
         current_state = self.get_full_state()
@@ -86,6 +90,7 @@ class DigitalTwinConnector:
 
     async def connect_and_subscribe(self):
         """Estabelece a conexão OPC UA e inicia a subscrição assíncrona."""
+        self._loop = asyncio.get_running_loop()
         logger.info(f"Conectando ao servidor OPC UA em {self.url}...")
         self.client = Client(url=self.url)
         await self.client.connect()
@@ -246,10 +251,17 @@ class DigitalTwinConnector:
         await self.write_tag("start", False)
 
     def inject_fault(self, fault_type: str):
-        """Injeta uma falha no motor da Rede de Petri e aciona o protocolo de segurança."""
+        """Injeta uma falha no motor da Rede de Petri e aciona o protocolo de segurança de forma thread-safe."""
         anomaly = self.petri_engine.inject_synthetic_anomaly(fault_type)
-        if anomaly.severity == "CRITICAL":
-            asyncio.create_task(self.emergency_stop(reason=anomaly.message))
+        if anomaly and anomaly.severity == "CRITICAL":
+            if self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.emergency_stop(reason=anomaly.message), self._loop)
+            else:
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self.emergency_stop(reason=anomaly.message))
+                except RuntimeError:
+                    logger.warning("Nenhum loop assíncrono disponível para disparar emergency_stop da falha.")
         return anomaly
 
     def get_full_state(self) -> Dict[str, Any]:

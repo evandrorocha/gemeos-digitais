@@ -16,9 +16,9 @@ services:
       # Conecta ao servidor CODESYS OPC UA rodando no host Windows
       - OPCUA_SERVER_URL=opc.tcp://host.docker.internal:4840
       - DEBOUNCE_TIME_MS=50
-      - MAX_PRESENCE_TIME_SEC=4.5
-      - TIMEOUT_CONVEYOR_ENTRY_SEC=8.0
-      - TIMEOUT_TRANSFER_SEC=4.5
+      - MAX_PRESENCE_TIME_SEC=8.0
+      - TIMEOUT_CONVEYOR_ENTRY_SEC=15.0
+      - TIMEOUT_TRANSFER_SEC=8.0
     extra_hosts:
       # Mapeia host.docker.internal para o IP do computador local
       - "host.docker.internal:host-gateway"
