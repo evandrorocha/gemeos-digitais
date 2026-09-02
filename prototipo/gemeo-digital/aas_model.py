@@ -16,11 +16,11 @@ class AssetAdministrationShell:
     Organizado em submodelos padronizados.
     """
 
-    def __init__(self, asset_id: str = "urn:ufba:dcc:digitaltwin:sorting_by_height:001"):
+    def __init__(self, asset_id: str = "urn:ufrj:lps:digitaltwin:sorting_by_height:001"):
         self.id_short = "AAS_SortingByHeight_Conveyor"
         self.asset_id = asset_id
         self.asset_kind = "Type" # ou "Instance"
-        self.description = "Gêmeo Digital de Controle Supervisório e Diagnóstico da Esteira de Separação de Caixas"
+        self.description = "Gêmeo Digital de Controle Supervisório e Diagnóstico da Esteira de Separação de Caixas - LPS/UFRJ"
 
         # ---------------------------------------------------------------------
         # Submodelo 1: Identificação e Dados Técnicos (Identification / TechnicalData)
