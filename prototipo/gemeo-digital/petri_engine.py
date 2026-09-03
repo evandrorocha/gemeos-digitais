@@ -264,5 +264,6 @@ class PetriNetEngine:
             "places_state": self.places,
             "tags_state": self.tags,
             "active_anomalies": [a.to_dict() for a in self.active_anomalies if a.is_active],
+            "anomaly_history": [a.to_dict() for a in self.anomaly_history],
             "total_anomalies_recorded": len(self.anomaly_history)
         }

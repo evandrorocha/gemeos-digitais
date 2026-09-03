@@ -183,10 +183,15 @@ class DigitalTwinConnector:
             return False
 
     async def emergency_stop(self, reason: str = "Parada de Emergência acionada pelo Gêmeo Digital"):
-        """Envia o comando de parada imediata para o CLP."""
+        """Envia o comando de parada imediata para o CLP desligando todos os motores na hora."""
         logger.warning(f"🛑 [EMERGÊNCIA] {reason}")
         await self.write_tag("desligar", True)
         await self.write_tag("stop", True)
+        await self.write_tag("p2", False)
+        await self.write_tag("p1", True)
+        await self.write_tag("conveyorEntry", False)
+        await self.write_tag("transferLeft", False)
+        await self.write_tag("transferRight", False)
 
     async def reset_plant(self):
         """Envia o comando de reset para restabelecer a operação normal e a marcação inicial de Petri."""
