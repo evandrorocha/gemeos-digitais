@@ -85,8 +85,8 @@ class RedePetri:
         """
         Retorna as transições habilitadas pelos estados atuais.
 
-        Uma transição está disponível quando existe pelo menos
-        um lugar de origem com ficha.
+        Uma transição está disponível quando todos os lugares de
+        origem possuem ficha ficha.
         """
 
         # Primeiro, descobrir todos os lugares de entrada de cada transição
@@ -131,7 +131,7 @@ class RedePetri:
         # 2. Encontrar transições habilitadas
         disponiveis = self.transicoes_disponiveis()
 
-        # 3. Encontrar uma transição associada ao evento que esteja habilitada
+        # 3. Encontrar transições habilitadas que esteja associadas ao evento
         transicoes_escolhidas = []
         lugar_origem = None
 
@@ -151,7 +151,7 @@ class RedePetri:
             lugares_origem = disponiveis[transicao]
 
             for lugar in lugares_origem:
-                self.estados[lugar_origem] -= 1
+                self.estados[lugar] -= 1
 
             lugares_destino = self.transicoes2lugares[transicao]
             for lugar in lugares_destino:
@@ -206,6 +206,4 @@ class RedePetri:
     def mostrar_estados(self):
 
         print("Estados atuais:")
-
-        for lugar, fichas in self.estados.items():
-            print(f"  {lugar}: {fichas}")
+        print(" | ".join(f"{lugar}: {fichas}" for lugar, fichas in self.estados.items()))
