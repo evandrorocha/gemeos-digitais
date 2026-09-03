@@ -83,7 +83,7 @@ class RedePetri:
         # 1. Verificar o evento
         if evento not in self.eventos:
             return False, (
-                f"Falha: evento '{evento}' não está cadastrado."
+                f"Falha: evento '{evento}' nao esta cadastrado."
             )
 
         transicoes_evento = self.eventos[evento]
@@ -99,15 +99,11 @@ class RedePetri:
             if transicao in disponiveis:
                 transicoes_escolhidas.append(transicao)
 
-                # transicao_escolhida = transicao
-                # lugares_origem = disponiveis[transicao]
-                # break
-
         # 4. Se nenhuma transição estiver habilitada
         if not transicoes_escolhidas:
             return False, (
-                f"Falha: nenhuma transição associada ao evento "
-                f"'{evento}' está habilitada."
+                f"Falha: nenhuma transicao associada ao evento "
+                f"'{evento}' esta habilitada."
             )
 
         # 5. Disparar as transições associadas
@@ -124,7 +120,7 @@ class RedePetri:
 
             mensagens.append(
                 f"Evento '{evento}': "
-                f"transição '{transicao}' disparada "
+                f"transicao '{transicao}' disparada "
                 f"a partir de '{lugar_origem}'."
             )
 
@@ -160,7 +156,7 @@ class RedePetri:
                     self.estados[lugar] += 1
 
             mensagens.append(
-                f"Transição lambda '{transicao_lambda}' "
+                f"Transicao lambda '{transicao_lambda}' "
                 f"disparada a partir de '{lugar_origem}'."
             )
 
