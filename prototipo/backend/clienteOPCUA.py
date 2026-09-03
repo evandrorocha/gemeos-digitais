@@ -1,6 +1,6 @@
 import asyncio
 from asyncua import Client, ua
-from redeDePetri import RedePetri
+from prototipo.backend.redeDePetri import RedePetri
 
 
 # Endereço do servidor OPC UA do CODESYS
