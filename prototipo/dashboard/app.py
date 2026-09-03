@@ -20,6 +20,7 @@ import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
 from opc_connector import DigitalTwinConnector
+import ifc_viewer
 
 # Configuração da Página
 st.set_page_config(
@@ -236,11 +237,12 @@ def render_live_dashboard():
     # -------------------------------------------------------------------------
     # ABAS PRINCIPAIS DO SUPERVISÓRIO
     # -------------------------------------------------------------------------
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "🏭 Sinótico da Planta 2D",
         "🕸️ Grafo da Rede de Petri",
         "📜 Auditoria & Governança (ISO/IEC 30173)",
-        "📦 Modelo AAS (Eclipse BaSyx)"
+        "📦 Modelo AAS (Eclipse BaSyx)",
+        "🏗️ Visualização 3D (BIM/IFC)"
     ])
 
     # -------------------------------------------------------------------------
@@ -375,6 +377,20 @@ def render_live_dashboard():
             file_name="SortingByHeight_AAS_Model.json",
             mime="application/json"
         )
+
+    # -------------------------------------------------------------------------
+    # TAB 5: VISUALIZAÇÃO 3D A PARTIR DO MODELO BIM/IFC REAL
+    # -------------------------------------------------------------------------
+    with tab5:
+        st.subheader("Cena 3D gerada a partir do modelo IFC real (ISO 16739)")
+        st.caption("Geometria extraída via ifcopenshell de `gemeo-digital/models/sorting_by_height.ifc`. Cada elemento é colorido pelo estado ao vivo do Gêmeo Digital: cinza = parado, verde = ativo/detectando, vermelho = componente citado em anomalia crítica.")
+
+        if not ifc_viewer.ifc_model_available():
+            st.warning("Modelo IFC não encontrado. Gere-o executando `python gemeo-digital/models/build_ifc_model.py`.")
+        else:
+            fig_3d = ifc_viewer.build_3d_figure(tags, petri)
+            st.plotly_chart(fig_3d, use_container_width=True, key="ifc_3d_view")
+            st.caption("Coordenadas nominais/aproximadas (não medidas via laser scan da cena real do Factory I/O) — ver `models/build_ifc_model.py`.")
 
 
 # Renderiza o dashboard ao vivo
