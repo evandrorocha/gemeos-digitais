@@ -10,8 +10,13 @@ import os
 from functools import lru_cache
 from typing import Any, Dict, List
 
-import ifcopenshell
-import ifcopenshell.geom
+try:
+    import ifcopenshell
+    import ifcopenshell.geom
+    HAS_IFCOPENSHELL = True
+except ImportError:
+    HAS_IFCOPENSHELL = False
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -32,7 +37,7 @@ ALERT_KEYWORDS: Dict[str, List[str]] = {
 
 
 def ifc_model_available() -> bool:
-    return os.path.isfile(IFC_PATH) and os.path.isfile(MAP_PATH)
+    return HAS_IFCOPENSHELL and os.path.isfile(IFC_PATH) and os.path.isfile(MAP_PATH)
 
 
 def _load_element_map() -> Dict[str, Any]:
