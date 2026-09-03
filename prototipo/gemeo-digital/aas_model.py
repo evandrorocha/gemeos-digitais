@@ -150,10 +150,10 @@ class AssetAdministrationShell:
         self._prop_ifc_guid = model.Property("IfcGlobalId", str, primary.get("ifc_global_id", ""))
         self._prop_ifc_element_type = model.Property("IfcElementType", str, primary.get("ifc_class", ""))
         self._prop_building_storey = model.Property("BuildingStorey", str, "Terreo - Celula de Triagem")
-        pos = primary.get("position_m", {})
-        self._prop_pos_x = model.Property("PositionX_m", float, float(pos.get("x", 0.0)))
-        self._prop_pos_y = model.Property("PositionY_m", float, float(pos.get("y", 0.0)))
-        self._prop_pos_z = model.Property("PositionZ_m", float, float(pos.get("z", 0.0)))
+        center = primary.get("center_m", {})
+        self._prop_pos_x = model.Property("PositionX_m", float, float(center.get("x", 0.0)))
+        self._prop_pos_y = model.Property("PositionY_m", float, float(center.get("y", 0.0)))
+        self._prop_pos_z = model.Property("PositionZ_m", float, 0.0)
 
         self._list_ifc_element_map = model.SubmodelElementList(
             id_short="IfcElementMap",

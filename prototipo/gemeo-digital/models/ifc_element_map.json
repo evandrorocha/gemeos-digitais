@@ -1,98 +1,162 @@
 {
-  "conveyorEntry": {
-    "ifc_global_id": "2g1$BtHwn7sAY2llngy$dR",
-    "ifc_class": "IfcTransportElement",
-    "object_type": "Conveyor Segment",
-    "name": "Esteira de Entrada",
-    "position_m": {
-      "x": 0.0,
-      "y": 0.0,
-      "z": 0.0
-    },
-    "size_m": {
-      "x": 2.0,
-      "y": 0.3,
-      "z": 0.3
-    }
-  },
-  "palletSensor": {
-    "ifc_global_id": "32QIT47FT5ZAsUaAw$xJ_G",
-    "ifc_class": "IfcSensor",
-    "object_type": "Optical Presence Sensor",
-    "name": "Sensor de Presenca",
-    "position_m": {
-      "x": 0.2,
-      "y": 0.1,
-      "z": 0.3
-    },
-    "size_m": {
-      "x": 0.05,
-      "y": 0.1,
-      "z": 0.05
-    }
-  },
-  "highSensor": {
-    "ifc_global_id": "3uIQPgp4P4PP9KqNzwerN_",
-    "ifc_class": "IfcSensor",
-    "object_type": "Optical Height Sensor",
-    "name": "Sensor de Altura",
-    "position_m": {
-      "x": 1.0,
-      "y": -0.05,
-      "z": 0.6
-    },
-    "size_m": {
-      "x": 0.05,
-      "y": 0.4,
-      "z": 0.05
-    }
-  },
   "transferTable": {
-    "ifc_global_id": "3DfTFnHFH2wP4Bj7GKqpFL",
+    "ifc_global_id": "2WBmWnJ$rEpvb43O6gAfN$",
     "ifc_class": "IfcTransportElement",
     "object_type": "Chain Transfer Table",
     "name": "Mesa de Transferencia",
-    "position_m": {
-      "x": 2.0,
-      "y": -0.5,
-      "z": 0.0
+    "center_m": {
+      "x": 0.0,
+      "y": 0.0
     },
     "size_m": {
-      "x": 0.6,
-      "y": 1.3,
+      "x": 1.6,
+      "y": 2.0,
       "z": 0.3
-    }
+    },
+    "rotation_deg": 0.0
+  },
+  "conveyorEntry": {
+    "ifc_global_id": "37Q8XbHZf1tg9rEkQ1BXSi",
+    "ifc_class": "IfcTransportElement",
+    "object_type": "Conveyor Segment (4M)",
+    "name": "Esteira de Entrada",
+    "center_m": {
+      "x": 4.0,
+      "y": 0.0
+    },
+    "size_m": {
+      "x": 4.0,
+      "y": 0.6,
+      "z": 0.3
+    },
+    "rotation_deg": 0.0
   },
   "conveyorLeft": {
-    "ifc_global_id": "3fpfANZQX5nu0Iyh3RXRRH",
+    "ifc_global_id": "2PUNE4XTf959XiNW$C42W2",
     "ifc_class": "IfcTransportElement",
-    "object_type": "Conveyor Segment",
+    "object_type": "Conveyor Segment (4M)",
     "name": "Esteira de Saida - Baixa",
-    "position_m": {
-      "x": 2.6,
-      "y": -1.5,
-      "z": 0.0
+    "center_m": {
+      "x": 0.0,
+      "y": -4.0
     },
     "size_m": {
-      "x": 1.5,
-      "y": 0.3,
+      "x": 4.0,
+      "y": 0.6,
       "z": 0.3
-    }
+    },
+    "rotation_deg": 90.0
   },
   "conveyorRight": {
-    "ifc_global_id": "0ORhECPhb3weE62xYtqZMC",
+    "ifc_global_id": "1AqkGzhnbBUer6DGoAeftI",
     "ifc_class": "IfcTransportElement",
-    "object_type": "Conveyor Segment",
+    "object_type": "Conveyor Segment (4M)",
     "name": "Esteira de Saida - Alta",
-    "position_m": {
-      "x": 2.6,
-      "y": 1.0,
-      "z": 0.0
+    "center_m": {
+      "x": 0.0,
+      "y": 4.0
     },
     "size_m": {
-      "x": 1.5,
-      "y": 0.3,
+      "x": 4.0,
+      "y": 0.6,
       "z": 0.3
-    }
+    },
+    "rotation_deg": 90.0
+  },
+  "highSensor": {
+    "ifc_global_id": "1bdQP$9vj8oh5urjwvPKsk",
+    "ifc_class": "IfcSensor",
+    "object_type": "Light Curtain - High Beam",
+    "name": "Cortina Optica - Feixe Alto",
+    "center_m": {
+      "x": 1.0,
+      "y": 0.0
+    },
+    "size_m": {
+      "x": 0.06,
+      "y": 2.0,
+      "z": 0.06
+    },
+    "rotation_deg": 0.0
+  },
+  "palletSensor": {
+    "ifc_global_id": "3$K3l68PHAzA_LNyu_6oO2",
+    "ifc_class": "IfcSensor",
+    "object_type": "Light Curtain - Pallet Beam",
+    "name": "Cortina Optica - Feixe de Presenca",
+    "center_m": {
+      "x": 1.0,
+      "y": 0.0
+    },
+    "size_m": {
+      "x": 0.06,
+      "y": 2.0,
+      "z": 0.06
+    },
+    "rotation_deg": 0.0
+  },
+  "atLeftEntry": {
+    "ifc_global_id": "3InWjdZBvCRuLQ$MjBmlW_",
+    "ifc_class": "IfcSensor",
+    "object_type": "Retroreflective Photoelectric Sensor",
+    "name": "Sensor - Entrada Esquerda",
+    "center_m": {
+      "x": 0.0,
+      "y": -0.8
+    },
+    "size_m": {
+      "x": 1.6,
+      "y": 0.06,
+      "z": 0.08
+    },
+    "rotation_deg": 0.0
+  },
+  "atRightEntry": {
+    "ifc_global_id": "0oHlVZ_qzBvwPDOhmd8Nsd",
+    "ifc_class": "IfcSensor",
+    "object_type": "Retroreflective Photoelectric Sensor",
+    "name": "Sensor - Entrada Direita",
+    "center_m": {
+      "x": 0.0,
+      "y": 0.8
+    },
+    "size_m": {
+      "x": 1.6,
+      "y": 0.06,
+      "z": 0.08
+    },
+    "rotation_deg": 0.0
+  },
+  "atLeftExit": {
+    "ifc_global_id": "1ZheE0$012xwbxBYMPsSDQ",
+    "ifc_class": "IfcSensor",
+    "object_type": "Retroreflective Photoelectric Sensor",
+    "name": "Sensor - Saida Esquerda",
+    "center_m": {
+      "x": 0.0,
+      "y": -5.2
+    },
+    "size_m": {
+      "x": 1.6,
+      "y": 0.06,
+      "z": 0.08
+    },
+    "rotation_deg": 0.0
+  },
+  "atRightExit": {
+    "ifc_global_id": "15y0BkO41CJApvGW5Ty8xK",
+    "ifc_class": "IfcSensor",
+    "object_type": "Retroreflective Photoelectric Sensor",
+    "name": "Sensor - Saida Direita",
+    "center_m": {
+      "x": 0.0,
+      "y": 5.2
+    },
+    "size_m": {
+      "x": 1.6,
+      "y": 0.06,
+      "z": 0.08
+    },
+    "rotation_deg": 0.0
   }
 }

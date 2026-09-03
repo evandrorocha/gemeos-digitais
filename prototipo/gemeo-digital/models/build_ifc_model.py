@@ -10,15 +10,26 @@ disposicao fisica da linha mudar) e produz dois artefatos versionados:
                                    consumido pelo aas_model.py (submodelo
                                    SpatialContext) e pelo ifc_viewer.py.
 
-Cada elemento eh montado como um pequeno conjunto de solidos primitivos (pernas,
-leito, roletes, cabecotes de sensor) em vez de um unico bloco retangular -- o
-suficiente para ser reconhecivel como esteira/sensor/mesa de transferencia num
-visualizador 3D, sem exigir um software de autoria CAD.
-
-Coordenadas: aproximadas/nominais, estimadas a partir do layout tipico da cena
-"Sorting by Height - Basic" do Factory I/O (nao medidas via laser scan da cena
-real). Servem para visualizacao e para validar o pipeline BIM-AAS; se a planta
-fisica for remontada ou a cena for outra, ajuste o dicionario ELEMENTS abaixo.
+Topologia e posicoes: extraidas do arquivo real da cena instalada localmente
+("Sorting by Height (Basic).factoryio", formato XML). Alguns fatos vieram
+diretamente do arquivo:
+  - highSensor e palletSensor NAO sao dois dispositivos separados: sao dois
+    feixes (beam5 "High sensor", beam7 "Pallet sensor") da MESMA cortina de
+    luz (LightCurtainEmitter/Receiver), ancorada logo antes da mesa de
+    transferencia.
+  - atLeftEntry/atLeftExit/atRightEntry/atRightExit sao 4 pares sensor
+    retrorreflexivo + espelho, um em cada extremidade das duas esteiras de
+    saida -- ausentes nas versoes anteriores deste script.
+  - A topologia real: a esteira de entrada (RollerConveyor4M, 4m) alimenta a
+    mesa de transferencia (ChainTransfer) ao longo do eixo X; as duas esteiras
+    de saida (RollerConveyor4M, 4m cada) saem perpendicularmente, ao longo do
+    eixo Y, uma para cada lado.
+A escala de posicao (0.2 m por unidade da cena) foi inferida comparando a
+distancia entre objetos adjacentes com o comprimento real conhecido dos
+RollerConveyor4M (4 m) -- nao eh um valor documentado oficialmente, mas bate
+de forma consistente em varias medidas independentes da cena (ver conversas
+do projeto). Dimensoes que a cena NAO revela (largura das esteiras, tamanho
+exato da mesa) continuam nominais/estimadas.
 
 Nota de modelagem: o IFC4 (ISO 16739-1:2018) eh um schema orientado a AEC e nao
 possui classes dedicadas para esteiras/sensores industriais (isso so aparece em
@@ -39,33 +50,56 @@ OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 IFC_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "sorting_by_height.ifc")
 MAP_OUTPUT_PATH = os.path.join(OUTPUT_DIR, "ifc_element_map.json")
 
-# tag OPC UA -> (classe IFC, ObjectType, nome, posicao (x,y,z) em metros,
-#                tamanho (x,y,z) em metros, estilo de geometria)
-# Posicao = canto inferior/origem local do elemento (nao o centro).
+# tag OPC UA -> (classe IFC, ObjectType, nome, centro (x,y) em metros,
+#                tamanho (comprimento, largura, altura) em metros,
+#                estilo de geometria, rotacao em graus ao redor do eixo vertical,
+#                elevacao da base em metros)
+# Centro = centro do elemento no plano XY (nao um canto); a base (Z) fica no
+# chao (0.0) exceto para os feixes da cortina de luz, que ficam elevados.
 ELEMENTS = {
-    "conveyorEntry": (
-        "IfcTransportElement", "Conveyor Segment", "Esteira de Entrada",
-        (0.0, 0.0, 0.0), (2.0, 0.3, 0.3), "conveyor",
-    ),
-    "palletSensor": (
-        "IfcSensor", "Optical Presence Sensor", "Sensor de Presenca",
-        (0.2, 0.10, 0.30), (0.05, 0.10, 0.05), "presence_sensor",
-    ),
-    "highSensor": (
-        "IfcSensor", "Optical Height Sensor", "Sensor de Altura",
-        (1.0, -0.05, 0.60), (0.05, 0.40, 0.05), "height_gate",
-    ),
     "transferTable": (
         "IfcTransportElement", "Chain Transfer Table", "Mesa de Transferencia",
-        (2.0, -0.5, 0.0), (0.6, 1.3, 0.3), "transfer_table",
+        (0.0, 0.0), (1.6, 2.0, 0.3), "transfer_table", 0.0, 0.0,
+    ),
+    "conveyorEntry": (
+        "IfcTransportElement", "Conveyor Segment (4M)", "Esteira de Entrada",
+        (4.0, 0.0), (4.0, 0.6, 0.3), "conveyor", 0.0, 0.0,
     ),
     "conveyorLeft": (
-        "IfcTransportElement", "Conveyor Segment", "Esteira de Saida - Baixa",
-        (2.6, -1.5, 0.0), (1.5, 0.3, 0.3), "conveyor",
+        "IfcTransportElement", "Conveyor Segment (4M)", "Esteira de Saida - Baixa",
+        (0.0, -4.0), (4.0, 0.6, 0.3), "conveyor", 90.0, 0.0,
     ),
     "conveyorRight": (
-        "IfcTransportElement", "Conveyor Segment", "Esteira de Saida - Alta",
-        (2.6, 1.0, 0.0), (1.5, 0.3, 0.3), "conveyor",
+        "IfcTransportElement", "Conveyor Segment (4M)", "Esteira de Saida - Alta",
+        (0.0, 4.0), (4.0, 0.6, 0.3), "conveyor", 90.0, 0.0,
+    ),
+    # highSensor e palletSensor: dois feixes da mesma cortina de luz, ancorada
+    # a meio caminho entre a esteira de entrada e a mesa de transferencia.
+    # highSensor = feixe alto (beam5); palletSensor = feixe baixo, rente a
+    # esteira, dispara para qualquer caixa (beam7).
+    "highSensor": (
+        "IfcSensor", "Light Curtain - High Beam", "Cortina Optica - Feixe Alto",
+        (1.0, 0.0), (0.06, 2.0, 0.06), "height_gate", 0.0, 0.45,
+    ),
+    "palletSensor": (
+        "IfcSensor", "Light Curtain - Pallet Beam", "Cortina Optica - Feixe de Presenca",
+        (1.0, 0.0), (0.06, 2.0, 0.06), "height_gate", 0.0, 0.12,
+    ),
+    "atLeftEntry": (
+        "IfcSensor", "Retroreflective Photoelectric Sensor", "Sensor - Entrada Esquerda",
+        (0.0, -0.8), (1.6, 0.06, 0.08), "photobeam_pair", 0.0, 0.15,
+    ),
+    "atRightEntry": (
+        "IfcSensor", "Retroreflective Photoelectric Sensor", "Sensor - Entrada Direita",
+        (0.0, 0.8), (1.6, 0.06, 0.08), "photobeam_pair", 0.0, 0.15,
+    ),
+    "atLeftExit": (
+        "IfcSensor", "Retroreflective Photoelectric Sensor", "Sensor - Saida Esquerda",
+        (0.0, -5.2), (1.6, 0.06, 0.08), "photobeam_pair", 0.0, 0.15,
+    ),
+    "atRightExit": (
+        "IfcSensor", "Retroreflective Photoelectric Sensor", "Sensor - Saida Direita",
+        (0.0, 5.2), (1.6, 0.06, 0.08), "photobeam_pair", 0.0, 0.15,
     ),
 }
 
@@ -125,20 +159,8 @@ def _transfer_table_solids(builder, length, width, height, n_slats=5):
     return solids
 
 
-def _presence_sensor_solids(builder, length, width, height):
-    """Sensor optico compacto: corpo + lente cilindrica voltada para a esteira."""
-    solids = [builder.block(position=(0.0, 0.0, 0.0), x_length=length, y_length=width, z_length=height)]
-    lens_radius = min(height, width) * 0.35
-    lens_circle = builder.circle(radius=lens_radius)
-    solids.append(builder.extrude(
-        lens_circle, magnitude=0.02, position=(length / 2, width, height / 2),
-        position_z_axis=(0.0, 1.0, 0.0), position_x_axis=(1.0, 0.0, 0.0),
-    ))
-    return solids
-
-
 def _height_gate_solids(builder, length, width, height):
-    """Sensor de altura como barreira optica: 2 cabecotes (emissor/receptor) + barra fina."""
+    """Feixe da cortina optica como barreira: 2 cabecotes (emissor/receptor) + barra fina."""
     head = max(height, 0.03)
     return [
         builder.block(position=(0.0, 0.0, 0.0), x_length=length, y_length=head, z_length=head),
@@ -150,12 +172,40 @@ def _height_gate_solids(builder, length, width, height):
     ]
 
 
+def _photobeam_pair_solids(builder, length, width, height):
+    """Par sensor retrorreflexivo + espelho: 2 corpos pequenos separados por 'length',
+    com uma lente esferica no corpo do sensor voltada para o espelho."""
+    box = max(width, 0.02)
+    solids = [
+        builder.block(position=(0.0, 0.0, 0.0), x_length=box, y_length=box, z_length=height),
+        builder.block(position=(length - box, 0.0, 0.0), x_length=box, y_length=box, z_length=height),
+    ]
+    solids.append(builder.sphere(radius=box * 0.35, center=(box, box / 2, height / 2)))
+    return solids
+
+
 SHAPE_BUILDERS = {
     "conveyor": _conveyor_solids,
     "transfer_table": _transfer_table_solids,
-    "presence_sensor": _presence_sensor_solids,
     "height_gate": _height_gate_solids,
+    "photobeam_pair": _photobeam_pair_solids,
 }
+
+
+def _placement_matrix(center_xy, length, width, angle_deg=0.0, base_z=0.0):
+    """Matriz de posicionamento que roda o solido (construido com canto na
+    origem local) ao redor do eixo vertical e centraliza seu footprint em
+    center_xy, com a base elevada em base_z."""
+    theta = np.radians(angle_deg)
+    c, s = np.cos(theta), np.sin(theta)
+    rotation = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])
+    local_center = np.array([length / 2.0, width / 2.0, 0.0])
+    translation = np.array([center_xy[0], center_xy[1], base_z]) - rotation @ local_center
+
+    matrix = np.eye(4)
+    matrix[:3, :3] = rotation
+    matrix[:3, 3] = translation
+    return matrix
 
 
 def build() -> None:
@@ -191,7 +241,7 @@ def build() -> None:
     builder = ShapeBuilder(ifc_file)
     element_map = {}
 
-    for tag, (ifc_class, object_type, name, position, size, shape_kind) in ELEMENTS.items():
+    for tag, (ifc_class, object_type, name, center_xy, size, shape_kind, angle_deg, base_z) in ELEMENTS.items():
         element = ifcopenshell.api.run(
             "root.create_entity", ifc_file, ifc_class=ifc_class,
             predefined_type="USERDEFINED", name=name,
@@ -204,8 +254,7 @@ def build() -> None:
         representation = builder.get_representation(body_context, solids)
         ifcopenshell.api.run("geometry.assign_representation", ifc_file, product=element, representation=representation)
 
-        matrix = np.eye(4)
-        matrix[:3, 3] = position
+        matrix = _placement_matrix(center_xy, size[0], size[1], angle_deg, base_z)
         ifcopenshell.api.run("geometry.edit_object_placement", ifc_file, product=element, matrix=matrix)
 
         element_map[tag] = {
@@ -213,8 +262,9 @@ def build() -> None:
             "ifc_class": ifc_class,
             "object_type": object_type,
             "name": name,
-            "position_m": {"x": position[0], "y": position[1], "z": position[2]},
+            "center_m": {"x": center_xy[0], "y": center_xy[1]},
             "size_m": {"x": size[0], "y": size[1], "z": size[2]},
+            "rotation_deg": angle_deg,
         }
 
     ifc_file.write(IFC_OUTPUT_PATH)

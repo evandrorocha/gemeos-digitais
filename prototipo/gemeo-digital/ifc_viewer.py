@@ -49,6 +49,10 @@ def _load_geometry() -> Dict[str, Dict[str, Any]]:
 
     ifc_file = ifcopenshell.open(IFC_PATH)
     settings = ifcopenshell.geom.settings()
+    # Sem isso, create_shape() retorna vertices no espaco LOCAL de cada
+    # elemento (ignorando o ObjectPlacement) -- todos os elementos apareceriam
+    # sobrepostos perto da origem em vez de posicionados na cena.
+    settings.set("use-world-coords", True)
 
     geometry_by_tag: Dict[str, Dict[str, Any]] = {}
     for element in ifc_file.by_type("IfcElement"):

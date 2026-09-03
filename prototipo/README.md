@@ -143,11 +143,11 @@ Ideal para isolamento total de ambiente ou execução em outras máquinas sem pr
    * Submodelo `TechnicalIdentification` com metadados do ativo e normas aplicadas.
    * Submodelo `OperationalData` com telemetria em tempo real.
    * Submodelo `HealthAndDiagnostics` com score de saúde e histórico de anomalias.
-   * Submodelo `SpatialContext` (vínculo BIM/IFC — ISO 16739): ancora o ativo aos `IfcGlobalId` **reais** dos 6 elementos do modelo `models/sorting_by_height.ifc` (esteira de entrada, sensores, mesa de transferência, esteiras de saída), gerado por `models/build_ifc_model.py` via `ifcopenshell`.
+   * Submodelo `SpatialContext` (vínculo BIM/IFC — ISO 16739): ancora o ativo aos `IfcGlobalId` **reais** dos 10 elementos do modelo `models/sorting_by_height.ifc` (mesa de transferência, esteira de entrada, 2 esteiras de saída, cortina óptica de altura/presença, 4 sensores retrorreflexivos de posição), gerado por `models/build_ifc_model.py` via `ifcopenshell`.
    * Serialização gerada pelo SDK oficial do Eclipse BaSyx no formato *Environment* do metamodelo AAS v3 (compatível com submodel repositories reais do ecossistema BaSyx), não mais um dict artesanal.
    * Botão no Dashboard para **download do arquivo oficial AAS no formato JSON**.
 
 5. **Visualização 3D a partir do Modelo BIM/IFC (ISO 16739):**
    * Aba dedicada no Dashboard (`🏗️ Visualização 3D (BIM/IFC)`) renderiza a geometria real extraída do `.ifc` via `ifcopenshell` + Plotly (`Mesh3d`).
    * Cada elemento físico é colorido pelo estado ao vivo do Gêmeo Digital: cinza = parado, verde = ativo/detectando, vermelho = componente citado em uma anomalia crítica ativa — a mesma lógica do sinótico 2D, agora aplicada a um modelo espacial real.
-   * Coordenadas nominais/aproximadas (não medidas via laser scan da cena real do Factory I/O) — ajustáveis em `ELEMENTS` dentro de `build_ifc_model.py`.
+   * Topologia e posições extraídas diretamente do arquivo real da cena (`Sorting by Height (Basic).factoryio`, formato XML), não mais inventadas — a escala (0,2 m/unidade) foi inferida e validada contra o comprimento real conhecido dos `RollerConveyor4M` (4 m). Dimensões que a cena não revela continuam nominais — ajustáveis em `ELEMENTS` dentro de `build_ifc_model.py`.
