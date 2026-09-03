@@ -66,7 +66,11 @@ eventos = {"start_P": ["t1"],
            "stop_P": ["t12"],
            "reset_P": ["t14"]}
 
-rede = RedePetri(lugares, lugares2transicoes, transicoes2lugares, eventos)
+variaveis = {"alto": 0}
+condicoes = {"t5": ("alto", 0),
+             "t8": ("alto", 1)}
+
+rede = RedePetri(lugares, lugares2transicoes, transicoes2lugares, eventos, variaveis, condicoes)
 
 class SubscriptionHandler:
     """

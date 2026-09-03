@@ -1,6 +1,11 @@
 class RedePetri:
-    def __init__(self, estados=None, lugares2transicoes=None,
-                 transicoes2lugares=None, eventos=None):
+    def __init__(self, 
+                 estados=None, 
+                 lugares2transicoes=None,
+                 transicoes2lugares=None, 
+                 eventos=None, 
+                 variaveis=None,
+                 condicoes=None):
 
         # Módulo dos estados
         # {lugar: quantidade_de_fichas}
@@ -26,6 +31,14 @@ class RedePetri:
         # {evento: [transicoes]}
         self.eventos = eventos if eventos is not None else {}
 
+        # Conjunto de variáveis internas do sistema
+        # {"variavel": valor}
+        self.variaveis = variaveis if variaveis is not None else {}
+
+        # Conjunto que indica associacao entre transicao e variavel interna
+        # {"transicao": ("variavel", valor)}
+        self.condicoes = condicoes if condicoes is not None else {}
+
     def adicionar_estado(self, lugar, fichas=0):
         self.estados[lugar] = fichas
 
@@ -47,6 +60,27 @@ class RedePetri:
     def adicionar_evento(self, evento, transicoes):
         self.eventos[evento] = transicoes
 
+    def adicionar_variavel(self, nome, valor=0):
+        self.variaveis[nome] = valor
+    
+    def atualizar_variavel(self, nome, valor):
+        if nome not in self.variaveis:
+            raise ValueError(
+                f"Variável '{nome}' não está cadastrada."
+            )
+        self.variaveis[nome] = valor
+    
+    def transicao_pode_disparar(self, transicao):
+        # Verificar condição interna
+        if transicao in self.condicoes:
+
+            variavel, valor_esperado = self.condicoes[transicao]
+
+            if self.variaveis.get(variavel) != valor_esperado:
+                return False
+
+        return True
+    
     def transicoes_disponiveis(self):
         """
         Retorna as transições habilitadas pelos estados atuais.
@@ -69,13 +103,19 @@ class RedePetri:
         # Verificar se TODOS os lugares de entrada possuem pelo menos uma ficha
         for transicao, lugares in entradas.items():
 
-            habilitada = all(self.estados.get(lugar, 0) > 0 for lugar in lugares)
+            # 1. Verificar fichas
+            fichas_disponiveis = all(self.estados.get(lugar, 0) > 0 for lugar in lugares)
+            if not fichas_disponiveis:
+                continue
 
-            if habilitada:
-                disponiveis[transicao] = lugares
+            # 2. Verificar variável interna
+            if not self.transicao_pode_disparar(transicao):
+                continue
+
+            disponiveis[transicao] = lugares
 
         return disponiveis
-
+    
     def processar_evento(self, evento):
 
         mensagens = []
