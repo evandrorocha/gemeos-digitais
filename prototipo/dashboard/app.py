@@ -355,9 +355,30 @@ def render_live_dashboard():
             df_events = pd.DataFrame(recent_events)
             cols_to_use = [c for c in ["timestamp_iso", "tag_name", "value", "quality", "source", "is_valid"] if c in df_events.columns]
             df_display = df_events[cols_to_use].astype(str)
-            st.dataframe(df_display, use_container_width=True, height=300)
+            st.dataframe(df_display, use_container_width=True, height=250)
+
+            # Botão de exportação para CSV (Governança e Auditoria)
+            csv_data = df_display.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Baixar Log de Auditoria em CSV (Excel)",
+                data=csv_data,
+                file_name="Auditoria_Governanca_ISO30173.csv",
+                mime="text/csv"
+            )
         else:
             st.info("Nenhum evento registrado no histórico recente.")
+
+        st.markdown("---")
+        st.subheader("🚨 Histórico de Laudos de Anomalias (AnomalyReport)")
+        st.caption("Registro formal de todas as anomalias detectadas, com fotografia da Rede de Petri no momento do erro e ação recomendada.")
+
+        anomaly_history = petri.get("anomaly_history") or petri.get("active_anomalies", [])
+        if anomaly_history:
+            df_anom = pd.DataFrame(anomaly_history)
+            cols_anom = [c for c in ["timestamp_iso", "anomaly_id", "severity", "component", "message", "current_marking", "suggested_action"] if c in df_anom.columns]
+            st.dataframe(df_anom[cols_anom].astype(str), use_container_width=True, height=220)
+        else:
+            st.success("✅ Nenhuma anomalia registrada no histórico de operação.")
 
     # -------------------------------------------------------------------------
     # TAB 4: MODELO AAS (ECLIPSE BASYX)
