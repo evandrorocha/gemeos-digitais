@@ -1,6 +1,6 @@
 {
   "conveyorEntry": {
-    "ifc_global_id": "0piDZE1d19cw0GnoOtL19_",
+    "ifc_global_id": "2g1$BtHwn7sAY2llngy$dR",
     "ifc_class": "IfcTransportElement",
     "object_type": "Conveyor Segment",
     "name": "Esteira de Entrada",
@@ -16,7 +16,7 @@
     }
   },
   "palletSensor": {
-    "ifc_global_id": "2sYSHBBKH9oQbh18ueF83z",
+    "ifc_global_id": "32QIT47FT5ZAsUaAw$xJ_G",
     "ifc_class": "IfcSensor",
     "object_type": "Optical Presence Sensor",
     "name": "Sensor de Presenca",
@@ -32,7 +32,7 @@
     }
   },
   "highSensor": {
-    "ifc_global_id": "0tpZFhstDEuwTAZsLYHhkQ",
+    "ifc_global_id": "3uIQPgp4P4PP9KqNzwerN_",
     "ifc_class": "IfcSensor",
     "object_type": "Optical Height Sensor",
     "name": "Sensor de Altura",
@@ -48,7 +48,7 @@
     }
   },
   "transferTable": {
-    "ifc_global_id": "1zfc4_Smz4qPZhkj0$polX",
+    "ifc_global_id": "3DfTFnHFH2wP4Bj7GKqpFL",
     "ifc_class": "IfcTransportElement",
     "object_type": "Chain Transfer Table",
     "name": "Mesa de Transferencia",
@@ -64,7 +64,7 @@
     }
   },
   "conveyorLeft": {
-    "ifc_global_id": "3NDGWvRs59BwClcQPl7$C9",
+    "ifc_global_id": "3fpfANZQX5nu0Iyh3RXRRH",
     "ifc_class": "IfcTransportElement",
     "object_type": "Conveyor Segment",
     "name": "Esteira de Saida - Baixa",
@@ -80,7 +80,7 @@
     }
   },
   "conveyorRight": {
-    "ifc_global_id": "1AdIygRNzEiwebc8ckrCAA",
+    "ifc_global_id": "0ORhECPhb3weE62xYtqZMC",
     "ifc_class": "IfcTransportElement",
     "object_type": "Conveyor Segment",
     "name": "Esteira de Saida - Alta",
