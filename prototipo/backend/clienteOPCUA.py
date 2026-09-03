@@ -70,7 +70,7 @@ variaveis = {"alto": 0}
 condicoes = {"t5": ("alto", 0),
              "t8": ("alto", 1)}
 
-rede = RedePetri(lugares, lugares2transicoes, transicoes2lugares, eventos, variaveis, condicoes)
+redeSortingByHeight = RedePetri(lugares, lugares2transicoes, transicoes2lugares, eventos, variaveis, condicoes)
 
 class SubscriptionHandler:
     """
@@ -96,8 +96,8 @@ class SubscriptionHandler:
             print(f"Erro ao processar atualização: {e}")
 
     def createEventMessage(self):
-        # Descarta o evento do contador
-        if (self.current_name == "contador"): return
+        # # Descarta o evento do contador
+        # if (self.current_name == "contador"): return
 
         # Adiciona informação de borda de subida (P) ou borda de descida (N)
         if self.current_value:
@@ -174,7 +174,21 @@ async def main():
                 if (not handler.current_checked):
                     # print(f"{handler.current_name:20} = {handler.current_value}")
                     print(handler.createEventMessage())
+
                     handler.current_checked = True                
+                    eventMessage = handler.createEventMessage()
+
+                    # Descarta evento do contador
+                    if (eventMessage == "contador_P") or (eventMessage == "contador_N"):
+                        continue
+                    # Caso altere a tag "alto", muda o valor interno na rede de petri
+                    if (eventMessage == "alto_P"):              
+                        redeSortingByHeight.atualizar_variavel("alto", 1)
+                    elif (eventMessage == "alto_N"):
+                        redeSortingByHeight.atualizar_variavel("alto", 0)
+                    # Atualiza a rede e printa o estado atual
+                    else:
+                        redeSortingByHeight.processar_evento(eventMessage)
 
                 await asyncio.sleep(0.5)
 
