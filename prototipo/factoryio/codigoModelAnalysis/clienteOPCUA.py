@@ -1,5 +1,6 @@
 import asyncio
 from asyncua import Client, ua
+from redeDePetri import RedePetri
 
 
 # Endereço do servidor OPC UA do CODESYS
@@ -7,9 +8,15 @@ URL = "opc.tcp://127.0.0.1:4840"
 
 # NodeId do PLC_PRG
 PLC_PRG_NODE = (
-    "ns=4;s=|var|CODESYS Control Win V3 x64."
+    "ns=4;s=|var|CODESYS Control Win V3."
     "Application.PLC_PRG"
 )
+
+# Rede de Petri
+lugares = {"p1": 2, "p2": 0}
+transicoes = {"p1": {"t1": ["p1", "p2"], "t2": ["p3"]}, "p2": {"t3": ["p4"]}}
+eventos = {"sensor1_P": ["t1", "t2"], "sensor2_N": ["t3"]}
+rede = RedePetri(lugares, transicoes, eventos)
 
 
 class SubscriptionHandler:
@@ -17,9 +24,21 @@ class SubscriptionHandler:
     Recebe as mudanças enviadas pelo servidor OPC UA.
     """
 
+    def __init__(self, tag_names):
+        self.tag_names = tag_names
+        self.current_name = ""
+        self.current_value = False
+        self.current_checked = False
+
     def datachange_notification(self, node, val, data):
         try:
-            print(f"{node.nodeid} = {val}")
+            name = self.tag_names.get(str(node.nodeid), str(node.nodeid))
+            # print(f"{name:20} = {val}")
+
+            self.current_name = name
+            self.current_value = val
+            self.current_checked = False
+
         except Exception as e:
             print(f"Erro ao processar atualização: {e}")
 
@@ -64,8 +83,13 @@ async def main():
         print(f"{len(tags)} tags monitoradas.")
         print()
 
+        tag_names = {}
+        for node in tags:
+            browse_name = await node.read_browse_name()
+            tag_names[str(node.nodeid)] = browse_name.Name
+
         # Cria o handler que receberá as mudanças
-        handler = SubscriptionHandler()
+        handler = SubscriptionHandler(tag_names)
 
         # Cria uma subscription
         subscription = await client.create_subscription(
@@ -83,7 +107,12 @@ async def main():
 
             # Mantém o programa executando
             while True:
-                await asyncio.sleep(1)
+
+                if (not handler.current_checked):
+                    print(f"{handler.current_name:20} = {handler.current_value}")
+                    handler.current_checked = True                
+
+                await asyncio.sleep(0.5)
 
         except KeyboardInterrupt:
 
