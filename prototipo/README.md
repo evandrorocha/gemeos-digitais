@@ -19,11 +19,16 @@ prototipo/
 │   ├── config.py                      # Parâmetros de temporização e nós OPC UA
 │   ├── data_sanitizer.py              # Sanitização (Debouncing 50ms, qualidade e linhagem ISO 30173)
 │   ├── petri_engine.py                # Motor da Rede de Petri & Detecção de Anomalias (Stuck ON/OFF, Timeout)
-│   ├── aas_model.py                   # Modelo de Casca Administrativa (Asset Administration Shell - BaSyx)
-│   └── opc_connector.py               # Conector OPC UA assíncrono bidirecional (asyncua)
+│   ├── aas_model.py                   # Casca Administrativa (AAS) via SDK oficial basyx-python-sdk
+│   ├── opc_connector.py               # Conector OPC UA assíncrono bidirecional (asyncua)
+│   ├── ifc_viewer.py                  # Extrai geometria do IFC (ifcopenshell) e monta a cena 3D (Plotly)
+│   └── models/                        # 📁 Camada Espacial / BIM (ISO 16739)
+│       ├── build_ifc_model.py            # Script de autoria do modelo IFC4 (fonte de verdade da geometria)
+│       ├── sorting_by_height.ifc         # Modelo IFC4 gerado (hierarquia espacial + 6 elementos)
+│       └── ifc_element_map.json          # Mapa tag OPC UA -> GlobalId/classe/posição IFC
 │
 ├── dashboard/                      # 📁 3. Camada de Aplicação do Usuário / Supervisório
-│   └── app.py                         # Interface Web em Streamlit com painel ao vivo e injeção de falhas
+│   └── app.py                         # Interface Web em Streamlit com painel ao vivo, injeção de falhas e visualização 3D/BIM
 │
 ├── docs/                           # 📚 Documentações Técnicas e Especificações
 │   ├── ARQUITETURA.md              # Documentação técnica completa da arquitetura
@@ -134,8 +139,15 @@ Ideal para isolamento total de ambiente ou execução em outras máquinas sem pr
    * Ao detectar qualquer anomalia crítica, o Gêmeo Digital aciona a **Parada de Emergência (`PLC_PRG.desligar = True`)** imediatamente via OPC UA, interrompendo a linha física antes de ocorrer quebra de equipamento.
    * O operador pode interagir no Dashboard, verificar a anomalia na tabela de auditoria e clicar em **`RESET`** para liberar a linha.
 
-4. **Padronização Indústria 4.0 (Asset Administration Shell - Eclipse BaSyx):**
+4. **Padronização Indústria 4.0 (Asset Administration Shell via SDK oficial `basyx-python-sdk`):**
    * Submodelo `TechnicalIdentification` com metadados do ativo e normas aplicadas.
    * Submodelo `OperationalData` com telemetria em tempo real.
    * Submodelo `HealthAndDiagnostics` com score de saúde e histórico de anomalias.
+   * Submodelo `SpatialContext` (vínculo BIM/IFC — ISO 16739): ancora o ativo aos `IfcGlobalId` **reais** dos 6 elementos do modelo `models/sorting_by_height.ifc` (esteira de entrada, sensores, mesa de transferência, esteiras de saída), gerado por `models/build_ifc_model.py` via `ifcopenshell`.
+   * Serialização gerada pelo SDK oficial do Eclipse BaSyx no formato *Environment* do metamodelo AAS v3 (compatível com submodel repositories reais do ecossistema BaSyx), não mais um dict artesanal.
    * Botão no Dashboard para **download do arquivo oficial AAS no formato JSON**.
+
+5. **Visualização 3D a partir do Modelo BIM/IFC (ISO 16739):**
+   * Aba dedicada no Dashboard (`🏗️ Visualização 3D (BIM/IFC)`) renderiza a geometria real extraída do `.ifc` via `ifcopenshell` + Plotly (`Mesh3d`).
+   * Cada elemento físico é colorido pelo estado ao vivo do Gêmeo Digital: cinza = parado, verde = ativo/detectando, vermelho = componente citado em uma anomalia crítica ativa — a mesma lógica do sinótico 2D, agora aplicada a um modelo espacial real.
+   * Coordenadas nominais/aproximadas (não medidas via laser scan da cena real do Factory I/O) — ajustáveis em `ELEMENTS` dentro de `build_ifc_model.py`.
