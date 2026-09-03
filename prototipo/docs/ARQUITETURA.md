@@ -47,13 +47,21 @@ Enquanto o CLP usa a Rede de Petri apenas para mover os motores, o **Gêmeo Digi
   * 🔴 **Timeout de Transporte (Caixa Engavetada / Motor Travado):** Se a esteira de entrada permanecer ligada por mais de 4.0 segundos sem que a caixa atinja o próximo sensor $\rightarrow$ **Dispara Parada de Segurança por Bloqueio de Linha**.
 
 #### C. Casca Administrativa do Ativo - AAS (`aas_model.py`):
-Implementa a representação do ativo conforme o padrão **Eclipse BaSyx** da Indústria 4.0:
-* **Submodelo `TechnicalIdentification`:** Metadados do equipamento, número de série, fabricante, normas de governança aplicadas (ISO 30173 / ISO 23247).
+Implementa a representação do ativo conforme o padrão **Eclipse BaSyx** da Indústria 4.0, construída sobre o **SDK oficial `basyx-python-sdk`** (`basyx.aas.model`) em vez de estruturas ad-hoc — os elementos (`Property`, `Submodel`, `SubmodelElementList`, `SubmodelElementCollection`) são objetos nativos do metamodelo AAS v3, e a exportação usa o serializador oficial (`basyx.aas.adapter.json.object_store_to_json`), produzindo um arquivo no formato *Environment* padrão, consumível por submodel repositories reais do ecossistema BaSyx:
+* **Submodelo `TechnicalIdentification`:** Metadados do equipamento, número de série, fabricante, normas de governança aplicadas (ISO 30173 / ISO 23247 / ISO 16739).
 * **Submodelo `OperationalData`:** Variáveis de telemetria em tempo real (estados das esteiras, sensores e contador de caixas).
-* **Submodelo `HealthAndDiagnostics`:** Score de integridade (`HEALTHY` ou `CRITICAL_FAULT`), histórico de anomalias ativas e carimbo de tempo do último incidente.
-* **Exportação:** Permite exportar toda a casca administrativa no formato oficial JSON para integração com ecossistemas BaSyx.
+* **Submodelo `HealthAndDiagnostics`:** Score de integridade (`HEALTHY` ou `CRITICAL_FAULT`), lista de lugares ativos da Rede de Petri, lista estruturada de anomalias ativas e carimbo de tempo do último incidente.
+* **Submodelo `SpatialContext` (vínculo BIM/IFC — ISO 16739):** Ancora o ativo a elementos geométricos **reais** do modelo IFC via `IfcGlobalId`/`IfcElementType`, mais o caminho do arquivo (`IfcFilePath`), a posição espacial do elemento primário (`PositionX_m/Y_m/Z_m`, `BuildingStorey`) e uma lista `IfcElementMap` com o GlobalId de cada um dos 6 elementos monitorados (esteiras, sensores, mesa de transferência). Liga a camada semântica do AAS (o que o ativo *é* e como está operando) à camada espacial do BIM (onde o ativo *está* na planta). Os valores são lidos em tempo de inicialização de `models/ifc_element_map.json` — se o modelo IFC não existir, os campos ficam vazios em vez de apontar para um GUID inventado.
+* **Exportação:** Permite exportar toda a casca administrativa (Shell + 4 submodelos) no formato oficial JSON do metamodelo AAS v3 para integração com ecossistemas BaSyx.
 
-#### D. Conector OPC UA Bidirecional (`opc_connector.py`):
+#### D. Camada Espacial / BIM (`gemeo-digital/models/`, `ifc_viewer.py`):
+Implementa a camada geométrica do Gêmeo Digital, ausente nas versões anteriores do protótipo:
+* **`models/build_ifc_model.py`:** Script de autoria que gera `sorting_by_height.ifc` (schema IFC4, ISO 16739-1:2018) via `ifcopenshell` — hierarquia espacial completa (`IfcProject > IfcSite > IfcBuilding > IfcBuildingStorey`) com 10 elementos: mesa de transferência, esteira de entrada, 2 esteiras de saída, os 2 feixes da cortina óptica (`highSensor`/`palletSensor`) e os 4 sensores retrorreflexivos de posição (`atLeftEntry`/`atLeftExit`/`atRightEntry`/`atRightExit`). Cada elemento é montado como um pequeno conjunto de sólidos primitivos (pernas, leito, roletes cilíndricos, cabeçotes de sensor com lente) em vez de um único bloco retangular.
+* **Topologia derivada da cena real:** as posições e a topologia acima foram extraídas do arquivo `Sorting by Height (Basic).factoryio` (formato XML) da instalação local do Factory I/O, não inventadas. Isso corrigiu duas suposições erradas de versões anteriores deste script: (1) `highSensor` e `palletSensor` não são dois dispositivos separados — são dois feixes (`beam5`/`beam7`) da **mesma** cortina óptica, ancorada entre a esteira de entrada e a mesa de transferência; (2) faltavam os 4 sensores retrorreflexivos `atLeftEntry`/`atLeftExit`/`atRightEntry`/`atRightExit`, que existem na cena real e já eram rastreados por `petri_engine.py`, mas nunca haviam sido representados espacialmente. A escala de posição (0,2 m por unidade da cena) foi **inferida**, não documentada oficialmente — validada por bater exatamente com o comprimento real conhecido dos `RollerConveyor4M` (4 m) em três medições independentes da cena. Dimensões que a cena não revela (largura das esteiras, tamanho exato da mesa) continuam nominais/estimadas.
+* **Nota de modelagem:** o IFC4 é um schema orientado a AEC e não possui classes dedicadas para esteiras/sensores industriais (isso só existe em IFC4.3, ainda pouco suportado por ferramentas). Os elementos usam `IfcTransportElement`/`IfcSensor` com `PredefinedType=USERDEFINED` + `ObjectType` descritivo — o mecanismo padrão do schema para categorias fora do enum. É uma fricção real entre os vocabulários de manufatura (ISO 23247) e de AEC (ISO 16739), documentada aqui para o registro do trabalho.
+* **`ifc_viewer.py`:** Abre `sorting_by_height.ifc` via `ifcopenshell.geom` (cache em memória, geometria é estática) com a opção `use-world-coords` habilitada — sem ela, a biblioteca retorna a geometria no espaço **local** de cada elemento (ignorando seu posicionamento na cena), fazendo todos os elementos aparecerem sobrepostos perto da origem; foi um bug real, encontrado e corrigido durante o desenvolvimento. Triangula cada elemento e monta uma cena `Mesh3d` do Plotly, recalculando a cor de cada peça a cada atualização do dashboard a partir do estado ao vivo (tag sanitizada) e das anomalias ativas da Rede de Petri (casamento por palavra-chave no campo `component` do `AnomalyReport`).
+
+#### E. Conector OPC UA Bidirecional (`opc_connector.py`):
 * Utiliza a biblioteca `asyncua` para criar uma conexão assíncrona de alta performance.
 * Implementa o padrão *Observer / Subscription* (`SAMPLING_RATE_MS = 100ms`).
 * **Ação Autônoma de Segurança:** Ao receber uma notificação de anomalia crítica do `petri_engine`, o conector envia imediatamente o comando `desligar = True` e `stop = True` para o CLP, parando a linha física antes que ocorra quebra de produto ou engavetamento.
@@ -67,6 +75,7 @@ Implementa a representação do ativo conforme o padrão **Eclipse BaSyx** da In
   * **Grafo Interativo da Rede de Petri:** Diagrama de estados que ilumina o nó ativo ($p_1, p_2 \dots$) conforme a caixa se move.
   * **Tabela de Auditoria (ISO/IEC 30173):** Histórico completo de eventos higienizados, latência e origem dos dados.
   * **Painel de Controle e Injeção de Falhas:** Botões para o operador iniciar a linha, aplicar Parada de Emergência, resetar falhas e injetar anomalias sintéticas para fins de auditoria e demonstração.
+  * **Visualização 3D (BIM/IFC):** Cena 3D interativa (Plotly `Mesh3d`) construída a partir da geometria real de `models/sorting_by_height.ifc`, com cada elemento colorido pelo estado ao vivo do Gêmeo Digital (cinza/verde/vermelho) — a mesma semântica do sinótico 2D, aplicada a um modelo espacial real em vez de ícones fixos.
 
 ---
 
@@ -103,11 +112,16 @@ prototipo/
 │   ├── config.py                      # Configurações de conexão e tempos
 │   ├── data_sanitizer.py              # Sanitização, debouncing e linhagem ISO 30173
 │   ├── petri_engine.py                # Máquina de estados da Rede de Petri e regras de falha
-│   ├── aas_model.py                   # Modelo de casca administrativa (Eclipse BaSyx)
-│   └── opc_connector.py               # Conector OPC UA assíncrono e controle autônomo
+│   ├── aas_model.py                   # Casca administrativa (AAS) via basyx-python-sdk
+│   ├── opc_connector.py               # Conector OPC UA assíncrono e controle autônomo
+│   ├── ifc_viewer.py                  # Geometria IFC (ifcopenshell) -> cena 3D Plotly
+│   └── models/                        # Camada Espacial / BIM (ISO 16739)
+│       ├── build_ifc_model.py            # Autoria do modelo IFC4 (fonte de verdade)
+│       ├── sorting_by_height.ifc         # Modelo IFC4 gerado
+│       └── ifc_element_map.json          # Mapa tag OPC UA -> elemento IFC
 │
 └── dashboard/                      # Camada 3: Aplicação do Usuário
-    └── app.py                         # Interface Web Streamlit
+    └── app.py                         # Interface Web Streamlit (inclui aba 3D/BIM)
 ```
 
 ---
@@ -119,3 +133,4 @@ Esta arquitetura cumpre integralmente os requisitos de um **Gêmeo Digital de N�
 2. **Sincronismo Bidirecional de Alta Velocidade (OPC UA):** Leitura de eventos em tempo real e escrita de comandos de emergência.
 3. **Governança e Confiabilidade dos Dados (ISO/IEC 30173):** Sanitização prévia com eliminação de ruídos e auditoria de qualidade.
 4. **Capacidade de Ação Autônoma e Diagnóstico (Rede de Petri):** O sistema não é apenas um visualizador passivo, mas atua como um sistema supervisório capaz de interromper a planta diante de desvios operacionais.
+5. **Contextualização Espacial via BIM (ISO 16739):** O ativo não existe apenas como dado semântico — está ancorado a uma geometria real (IFC), permitindo visualização 3D e abrindo caminho para integração com o modelo BIM completo de uma planta/instalação.

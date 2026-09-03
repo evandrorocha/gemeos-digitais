@@ -5,3 +5,6 @@ plotly>=5.19.0
 requests>=2.31.0
 pydantic>=2.6.0
 graphviz>=0.20.1
+basyx-python-sdk>=2.1.0
+ifcopenshell>=0.8.0
+numpy>=1.26.0
