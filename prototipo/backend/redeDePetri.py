@@ -55,24 +55,24 @@ class RedePetri:
         um lugar de origem com ficha.
         """
 
+        # Primeiro, descobrir todos os lugares de entrada de cada transição
+        entradas = {}
+
+        for lugar, transicoes in self.lugares2transicoes.items():
+            for transicao in transicoes:
+                if transicao not in entradas:
+                    entradas[transicao] = []
+                entradas[transicao].append(lugar)
+
         disponiveis = {}
 
-        for lugar, fichas in self.estados.items():
+        # Verificar se TODOS os lugares de entrada possuem pelo menos uma ficha
+        for transicao, lugares in entradas.items():
 
-            # Se não há ficha, nenhuma transição pode sair daqui
-            if fichas <= 0:
-                continue
+            habilitada = all(self.estados.get(lugar, 0) > 0 for lugar in lugares)
 
-            # Verifica se existem transições saindo desse lugar
-            if lugar not in self.lugares2transicoes:
-                continue
-
-            for transicao in self.lugares2transicoes[lugar]:
-
-                if transicao not in disponiveis:
-                    disponiveis[transicao] = []
-
-                disponiveis[transicao].append(lugar)
+            if habilitada:
+                disponiveis[transicao] = lugares
 
         return disponiveis
 
@@ -100,8 +100,7 @@ class RedePetri:
             if transicao in disponiveis:
 
                 transicao_escolhida = transicao
-                lugar_origem = disponiveis[transicao][0]
-
+                lugares_origem = disponiveis[transicao]
                 break
 
         # 4. Se nenhuma transição estiver habilitada
@@ -112,10 +111,10 @@ class RedePetri:
             )
 
         # 5. Disparar a transição associada
-        self.estados[lugar_origem] -= 1
+        for lugar in lugares_origem:
+            self.estados[lugar_origem] -= 1
 
         lugares_destino = self.transicoes2lugares[transicao_escolhida]
-
         for lugar in lugares_destino:
             if lugar in self.estados:
                 self.estados[lugar] += 1
