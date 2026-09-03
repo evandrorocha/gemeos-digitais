@@ -2,7 +2,6 @@ import asyncio
 from asyncua import Client, ua
 from prototipo.backend.redeDePetri import RedePetri
 
-
 # Endereço do servidor OPC UA do CODESYS
 URL = "opc.tcp://127.0.0.1:4840"
 
@@ -13,10 +12,61 @@ PLC_PRG_NODE = (
 )
 
 # Rede de Petri
-lugares = {"p1": 2, "p2": 0}
-transicoes = {"p1": {"t1": ["p1", "p2"], "t2": ["p3"]}, "p2": {"t3": ["p4"]}}
-eventos = {"sensor1_P": ["t1", "t2"], "sensor2_N": ["t3"]}
-rede = RedePetri(lugares, transicoes, eventos)
+lugares = {"p1": 1, "p2": 0, "p3": 0, "p4": 0, 
+           "p5": 0, "p6": 0, "p7": 0, "p8": 0, 
+           "p9": 0, "p10": 0, "p11": 0, "p12": 0, 
+           "p13": 0, "p14": 1, "p15": 0, "p16": 1}
+
+lugares2transicoes = {"p1": ["t1"], 
+                        "p2": ["t2"],
+                        "p3": ["t3"],
+                        "p4": ["t4"],
+                        "p5": ["t5", "t8"],
+                        "p6": ["t6"],
+                        "p7": ["t7"],
+                        "p8": ["t9"],
+                        "p9": ["t10"],
+                        "p10": ["t11"],
+                        "p11": ["t12", "t14"],
+                        "p12": ["t13"],
+                        "p13": ["t15"],
+                        "p14": ["t16"],
+                        "p15": ["t17"],
+                        "p16": ["t3"]}
+
+transicoes2lugares = {"t1": ["p2", "p11"],
+                        "t2": ["p3"],
+                        "t2": ["p3"],
+                        "t3": ["p2", "p4"],
+                        "t4": ["p5"],
+                        "t5": ["p6"],
+                        "t6": ["p7", "p16"],
+                        "t7": ["p10"],
+                        "t8": ["p8"],
+                        "t9": ["p9", "p16"],
+                        "t10": ["p10"],
+                        "t11": ["empty"],
+                        "t12": ["p12"],
+                        "t13": ["p1"],
+                        "t14": ["p13"],
+                        "t15": ["p1"],
+                        "t16": ["p15"],
+                        "t17": ["p14"]}
+
+eventos = {"start_P": ["t1"], 
+           "palletSensor_P": ["t2"],
+           "loaded_P": ["t4"],
+           "alto_P": ["t18"],
+           "alto_N": ["t5"],
+           "atLeftEntry_P": ["t6"],
+           "atLeftExit_P": ["t7"],
+           "atRightEntry_P": ["t9", "t17"],
+           "atRightExit_P": ["t10"],
+           "highSensor": ["t16"],
+           "stop_P": ["t12"],
+           "reset_P": ["t14"]}
+
+rede = RedePetri(lugares, lugares2transicoes, transicoes2lugares, eventos)
 
 
 class SubscriptionHandler:
