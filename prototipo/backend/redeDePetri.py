@@ -26,16 +26,8 @@ class RedePetri:
         # {evento: [transicoes]}
         self.eventos = eventos if eventos is not None else {}
 
-    # ---------------------------------------------------------
-    # ESTADOS
-    # ---------------------------------------------------------
-
     def adicionar_estado(self, lugar, fichas=0):
         self.estados[lugar] = fichas
-
-    # ---------------------------------------------------------
-    # TRANSIÇÕES
-    # ---------------------------------------------------------
 
     def adicionar_transicao(self, lugar_origem, transicao, lugares_destino):
         """
@@ -52,16 +44,8 @@ class RedePetri:
         # Adiciona os lugares de destino à transição
         self.transicoes2lugares[transicao] = lugares_destino
 
-    # ---------------------------------------------------------
-    # EVENTOS
-    # ---------------------------------------------------------
-
     def adicionar_evento(self, evento, transicoes):
         self.eventos[evento] = transicoes
-
-    # ---------------------------------------------------------
-    # TRANSIÇÕES DISPONÍVEIS
-    # ---------------------------------------------------------
 
     def transicoes_disponiveis(self):
         """
@@ -92,11 +76,9 @@ class RedePetri:
 
         return disponiveis
 
-    # ---------------------------------------------------------
-    # PROCESSAMENTO DE EVENTO
-    # ---------------------------------------------------------
-
     def processar_evento(self, evento):
+
+        mensagens = []
 
         # 1. Verificar o evento
         if evento not in self.eventos:
@@ -129,27 +111,60 @@ class RedePetri:
                 f"'{evento}' está habilitada."
             )
 
-        # 5. Consumir ficha do lugar de origem
+        # 5. Disparar a transição associada
         self.estados[lugar_origem] -= 1
 
-        # 6. Obter lugares de destino
         lugares_destino = self.transicoes2lugares[transicao_escolhida]
 
-        # 7. Adicionar fichas aos lugares de destino
         for lugar in lugares_destino:
             if lugar in self.estados:
                 self.estados[lugar] += 1
 
-        return True, (
-            f"Evento '{evento}' processado. "
-            f"Transição '{transicao_escolhida}' disparada "
+        mensagens.append(
+            f"Evento '{evento}': "
+            f"transição '{transicao_escolhida}' disparada "
             f"a partir de '{lugar_origem}'."
         )
 
-    # ---------------------------------------------------------
-    # VISUALIZAÇÃO
-    # ---------------------------------------------------------
+        # 6. Disparar automaticamente as transições lambda
+        while True:
+            # Atualiza as transições habilitadas
+            disponiveis = self.transicoes_disponiveis()
 
+            transicao_lambda = None
+            lugar_origem = None
+
+            # Procurar uma transição lambda habilitada
+            for transicao, lugares in disponiveis.items():
+
+                # Uma transição é lambda se não estiver associada a nenhum evento
+                if not any(transicao in transicoes for transicoes in self.eventos.values()):
+                    transicao_lambda = transicao
+                    lugar_origem = lugares[0]
+                    break
+
+            # Nenhuma lambda habilitada
+            if transicao_lambda is None:
+                break
+
+            # Disparar lambda
+            self.estados[lugar_origem] -= 1
+
+            lugares_destino = self.transicoes2lugares[transicao_lambda]
+
+            for lugar in lugares_destino:
+
+                if lugar in self.estados:
+                    self.estados[lugar] += 1
+
+            mensagens.append(
+                f"Transição lambda '{transicao_lambda}' "
+                f"disparada a partir de '{lugar_origem}'."
+            )
+
+        return True, "\n".join(mensagens)
+
+    # VISUALIZAÇÃO
     def mostrar_estados(self):
 
         print("Estados atuais:")
