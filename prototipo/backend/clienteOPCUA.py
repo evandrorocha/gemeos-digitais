@@ -1,6 +1,6 @@
 import asyncio
 from asyncua import Client, ua
-from prototipo.backend.redeDePetri import RedePetri
+from redeDePetri import RedePetri
 
 # Endereço do servidor OPC UA do CODESYS
 URL = "opc.tcp://127.0.0.1:4840"
@@ -68,7 +68,6 @@ eventos = {"start_P": ["t1"],
 
 rede = RedePetri(lugares, lugares2transicoes, transicoes2lugares, eventos)
 
-
 class SubscriptionHandler:
     """
     Recebe as mudanças enviadas pelo servidor OPC UA.
@@ -91,6 +90,18 @@ class SubscriptionHandler:
 
         except Exception as e:
             print(f"Erro ao processar atualização: {e}")
+
+    def createEventMessage(self):
+        # Descarta o evento do contador
+        if (self.current_name == "contador"): return
+
+        # Adiciona informação de borda de subida (P) ou borda de descida (N)
+        if self.current_value:
+            mensagem = self.current_name + "_P"
+        else:
+            mensagem = self.current_name + "_N"
+        return mensagem
+        
 
 
 async def main():
@@ -154,12 +165,11 @@ async def main():
         print("Aguardando alterações...\n")
 
         try:
-
-            # Mantém o programa executando
             while True:
 
                 if (not handler.current_checked):
-                    print(f"{handler.current_name:20} = {handler.current_value}")
+                    # print(f"{handler.current_name:20} = {handler.current_value}")
+                    print(handler.createEventMessage())
                     handler.current_checked = True                
 
                 await asyncio.sleep(0.5)
