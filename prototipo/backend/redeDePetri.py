@@ -92,38 +92,41 @@ class RedePetri:
         disponiveis = self.transicoes_disponiveis()
 
         # 3. Encontrar uma transição associada ao evento que esteja habilitada
-        transicao_escolhida = None
+        transicoes_escolhidas = []
         lugar_origem = None
 
         for transicao in transicoes_evento:
-
             if transicao in disponiveis:
+                transicoes_escolhidas.append(transicao)
 
-                transicao_escolhida = transicao
-                lugares_origem = disponiveis[transicao]
-                break
+                # transicao_escolhida = transicao
+                # lugares_origem = disponiveis[transicao]
+                # break
 
         # 4. Se nenhuma transição estiver habilitada
-        if transicao_escolhida is None:
+        if not transicoes_escolhidas:
             return False, (
                 f"Falha: nenhuma transição associada ao evento "
                 f"'{evento}' está habilitada."
             )
 
-        # 5. Disparar a transição associada
-        for lugar in lugares_origem:
-            self.estados[lugar_origem] -= 1
+        # 5. Disparar as transições associadas
+        for transicao in transicoes_escolhidas:
+            lugares_origem = disponiveis[transicao]
 
-        lugares_destino = self.transicoes2lugares[transicao_escolhida]
-        for lugar in lugares_destino:
-            if lugar in self.estados:
-                self.estados[lugar] += 1
+            for lugar in lugares_origem:
+                self.estados[lugar_origem] -= 1
 
-        mensagens.append(
-            f"Evento '{evento}': "
-            f"transição '{transicao_escolhida}' disparada "
-            f"a partir de '{lugar_origem}'."
-        )
+            lugares_destino = self.transicoes2lugares[transicao]
+            for lugar in lugares_destino:
+                if lugar in self.estados:
+                    self.estados[lugar] += 1
+
+            mensagens.append(
+                f"Evento '{evento}': "
+                f"transição '{transicao}' disparada "
+                f"a partir de '{lugar_origem}'."
+            )
 
         # 6. Disparar automaticamente as transições lambda
         while True:
