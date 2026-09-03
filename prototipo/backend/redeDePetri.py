@@ -1,76 +1,89 @@
 class RedePetri:
-    def __init__(self, lugares=None, transicoes=None, eventos=None):
-        """
-        lugares:
-            Dicionário contendo os lugares e suas fichas.
-            Exemplo:
-                {"p1": 2, "p2": 0}
+    def __init__(self, estados=None, lugares2transicoes=None,
+                 transicoes2lugares=None, eventos=None):
 
-        transicoes:
-            Dicionário que mapeia:
-                lugar -> {transição: [lugares_destino]}
+        # Módulo dos estados
+        # {lugar: quantidade_de_fichas}
+        self.estados = estados if estados is not None else {}
 
-            Exemplo:
-                {"p1": {"t1": ["p1", "p2"], "t2": ["p3"]}, "p2": {"t3": ["p4"]}}
+        # Módulo que indica quais transições saem de cada lugar
+        # {lugar: [transicoes]}
+        self.lugares2transicoes = (
+            lugares2transicoes
+            if lugares2transicoes is not None
+            else {}
+        )
 
-        eventos:
-            Dicionário que mapeia:
-                evento/sensor -> [transições]
+        # Módulo que indica quais lugares são alcançados por cada transição
+        # {transicao: [lugares]}
+        self.transicoes2lugares = (
+            transicoes2lugares
+            if transicoes2lugares is not None
+            else {}
+        )
 
-            Exemplo:
-                {"sensor1": ["t1", "t2"], "sensor2": ["t3"]}
-        """
-
-        self.lugares = lugares if lugares is not None else {}
-        self.transicoes = transicoes if transicoes is not None else {}
+        # Módulo dos eventos
+        # {evento: [transicoes]}
         self.eventos = eventos if eventos is not None else {}
 
+    # ---------------------------------------------------------
+    # ESTADOS
+    # ---------------------------------------------------------
+
     def adicionar_estado(self, lugar, fichas=0):
-        """Adiciona um lugar à rede."""
-        self.lugares[lugar] = fichas
+        self.estados[lugar] = fichas
 
-    def adicionar_transicao(self, lugar, transicao, destinos):
+    # ---------------------------------------------------------
+    # TRANSIÇÕES
+    # ---------------------------------------------------------
+
+    def adicionar_transicao(self, lugar_origem, transicao, lugares_destino):
         """
-        Adiciona uma transição associada a um lugar.
-
-        Exemplo:
-            adicionar_transicao("p1", "t1", ["p1", "p2"])
+        Adiciona uma transição à rede.
         """
 
-        if lugar not in self.transicoes:
-            self.transicoes[lugar] = {}
+        # Adiciona a transição ao lugar de origem
+        if lugar_origem not in self.lugares2transicoes:
+            self.lugares2transicoes[lugar_origem] = []
 
-        self.transicoes[lugar][transicao] = destinos
+        if transicao not in self.lugares2transicoes[lugar_origem]:
+            self.lugares2transicoes[lugar_origem].append(transicao)
+
+        # Adiciona os lugares de destino à transição
+        self.transicoes2lugares[transicao] = lugares_destino
+
+    # ---------------------------------------------------------
+    # EVENTOS
+    # ---------------------------------------------------------
 
     def adicionar_evento(self, evento, transicoes):
-        """Associa um evento a uma ou mais transições."""
         self.eventos[evento] = transicoes
 
-    def _transicoes_disponiveis(self):
-        """
-        Retorna as transições disponíveis nos lugares
-        que possuem pelo menos uma ficha.
+    # ---------------------------------------------------------
+    # TRANSIÇÕES DISPONÍVEIS
+    # ---------------------------------------------------------
 
-        Retorno:
-            {
-                "t1": ["p1"],
-                "t2": ["p3"]
-            }
+    def transicoes_disponiveis(self):
+        """
+        Retorna as transições habilitadas pelos estados atuais.
+
+        Uma transição está disponível quando existe pelo menos
+        um lugar de origem com ficha.
         """
 
         disponiveis = {}
 
-        for lugar, fichas in self.lugares.items():
+        for lugar, fichas in self.estados.items():
 
-            # O lugar precisa possuir pelo menos uma ficha
+            # Se não há ficha, nenhuma transição pode sair daqui
             if fichas <= 0:
                 continue
 
-            # Verifica as transições existentes nesse lugar
-            if lugar not in self.transicoes:
+            # Verifica se existem transições saindo desse lugar
+            if lugar not in self.lugares2transicoes:
                 continue
 
-            for transicao in self.transicoes[lugar]:
+            for transicao in self.lugares2transicoes[lugar]:
 
                 if transicao not in disponiveis:
                     disponiveis[transicao] = []
@@ -79,100 +92,67 @@ class RedePetri:
 
         return disponiveis
 
+    # ---------------------------------------------------------
+    # PROCESSAMENTO DE EVENTO
+    # ---------------------------------------------------------
+
     def processar_evento(self, evento):
-        """
-        Processa um novo evento recebido pela rede.
 
-        Etapas:
-        1. Procura as transições associadas ao evento.
-        2. Verifica quais dessas transições estão habilitadas.
-        3. Dispara a transição.
-        4. Atualiza as fichas.
-
-        Retorna:
-            (True, mensagem)  -> sucesso
-            (False, mensagem) -> falha
-        """
-
-        # --------------------------------------------------
-        # 1. Verificar se o evento existe
-        # --------------------------------------------------
-
+        # 1. Verificar o evento
         if evento not in self.eventos:
-            return False, f"Evento '{evento}' não está cadastrado."
+            return False, (
+                f"Falha: evento '{evento}' não está cadastrado."
+            )
 
         transicoes_evento = self.eventos[evento]
 
-        # --------------------------------------------------
-        # 2. Verificar quais transições estão disponíveis
-        # --------------------------------------------------
+        # 2. Encontrar transições habilitadas
+        disponiveis = self.transicoes_disponiveis()
 
-        transicoes_disponiveis = self._transicoes_disponiveis()
-
-        # --------------------------------------------------
-        # 3. Procurar uma transição do evento que esteja
-        #    habilitada
-        # --------------------------------------------------
-
+        # 3. Encontrar uma transição associada ao evento que esteja habilitada
         transicao_escolhida = None
         lugar_origem = None
 
         for transicao in transicoes_evento:
 
-            if transicao in transicoes_disponiveis:
+            if transicao in disponiveis:
 
                 transicao_escolhida = transicao
-
-                # Lugar que habilitou a transição
-                lugar_origem = transicoes_disponiveis[transicao][0]
+                lugar_origem = disponiveis[transicao][0]
 
                 break
 
-        # --------------------------------------------------
-        # 4. Nenhuma transição disponível
-        # --------------------------------------------------
-
+        # 4. Se nenhuma transição estiver habilitada
         if transicao_escolhida is None:
-            return (
-                False,
+            return False, (
                 f"Falha: nenhuma transição associada ao evento "
                 f"'{evento}' está habilitada."
             )
 
-        # --------------------------------------------------
-        # 5. Obter os lugares de destino
-        # --------------------------------------------------
+        # 5. Consumir ficha do lugar de origem
+        self.estados[lugar_origem] -= 1
 
-        destinos = self.transicoes[lugar_origem][transicao_escolhida]
+        # 6. Obter lugares de destino
+        lugares_destino = self.transicoes2lugares[transicao_escolhida]
 
-        # --------------------------------------------------
-        # 6. Consumir uma ficha do lugar de origem
-        # --------------------------------------------------
+        # 7. Adicionar fichas aos lugares de destino
+        for lugar in lugares_destino:
+            if lugar in self.estados:
+                self.estados[lugar] += 1
 
-        self.lugares[lugar_origem] -= 1
-
-        # --------------------------------------------------
-        # 7. Produzir fichas nos lugares de destino
-        # --------------------------------------------------
-
-        for destino in destinos:
-
-            # Caso o lugar ainda não exista
-            if destino not in self.lugares:
-                self.lugares[destino] = 0
-
-            self.lugares[destino] += 1
-
-        return (
-            True,
+        return True, (
             f"Evento '{evento}' processado. "
             f"Transição '{transicao_escolhida}' disparada "
             f"a partir de '{lugar_origem}'."
         )
 
+    # ---------------------------------------------------------
+    # VISUALIZAÇÃO
+    # ---------------------------------------------------------
+
     def mostrar_estados(self):
-        """Exibe o estado atual da rede."""
+
         print("Estados atuais:")
 
-        for lugar, fichas in self.lugares.items():
-            print(f"  {lugar}: {fichas} ficha(s)")
+        for lugar, fichas in self.estados.items():
+            print(f"  {lugar}: {fichas}")
