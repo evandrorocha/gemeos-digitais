@@ -56,8 +56,6 @@ transicoes2lugares = {"t1": ["p2", "p11"],
 eventos = {"start_P": ["t1"], 
            "palletSensor_P": ["t2"],
            "loaded_P": ["t4"],
-           "alto_P": ["t18"],
-           "alto_N": ["t5"],
            "atLeftEntry_P": ["t6"],
            "atLeftExit_P": ["t7"],
            "atRightEntry_P": ["t9", "t17"],
@@ -77,37 +75,31 @@ class SubscriptionHandler:
     Recebe as mudanças enviadas pelo servidor OPC UA.
     """
 
-    def __init__(self, tag_names):
+    def __init__(self, tag_names, event_queue):
         self.tag_names = tag_names
         self.current_name = ""
         self.current_value = False
         self.current_checked = False
+        self.current_message = ""
+
+        self.event_queue = event_queue
 
     def datachange_notification(self, node, val, data):
         try:
-            name = self.tag_names.get(str(node.nodeid), str(node.nodeid))
-            # print(f"{name:20} = {val}")
+            name = self.tag_names.get(
+                str(node.nodeid), 
+                str(node.nodeid))
 
-            self.current_name = name
-            self.current_value = val
-            self.current_checked = False
+            mensagem = f"{name}_{'P' if val else 'N'}"
+            # Não bloqueia o callback da subscription
+            self.event_queue.put_nowait(mensagem)
 
         except Exception as e:
             print(f"Erro ao processar atualização: {e}")
 
-    def createEventMessage(self):
-        # # Descarta o evento do contador
-        # if (self.current_name == "contador"): return
-
-        # Adiciona informação de borda de subida (P) ou borda de descida (N)
-        if self.current_value:
-            mensagem = self.current_name + "_P"
-        else:
-            mensagem = self.current_name + "_N"
-        return mensagem
+    def filterNewEvents(self, eventDict):
+        return self.current_message in eventDict
         
-
-
 async def main():
 
     print("Conectando ao CODESYS OPC UA...")
@@ -153,8 +145,10 @@ async def main():
             browse_name = await node.read_browse_name()
             tag_names[str(node.nodeid)] = browse_name.Name
 
+        event_queue = asyncio.Queue()
+        event_queue = asyncio.Queue(maxsize=100)
         # Cria o handler que receberá as mudanças
-        handler = SubscriptionHandler(tag_names)
+        handler = SubscriptionHandler(tag_names, event_queue)
 
         # Cria uma subscription
         subscription = await client.create_subscription(
@@ -170,34 +164,28 @@ async def main():
 
         try:
             while True:
+                event_message = await event_queue.get()
 
-                if (not handler.current_checked):
-                    # print(f"{handler.current_name:20} = {handler.current_value}")
-                    print(handler.createEventMessage())
+                try:
 
-                    handler.current_checked = True                
-                    eventMessage = handler.createEventMessage()
-
-                    # Descarta evento do contador
-                    if (eventMessage == "contador_P") or (eventMessage == "contador_N"):
+                    if event_message in ("contador_P", "contador_N"):
                         continue
-                    # Caso altere a tag "alto", muda o valor interno na rede de petri
-                    if (eventMessage == "alto_P"):              
+                    if event_message == "alto_P":
                         redeSortingByHeight.atualizar_variavel("alto", 1)
-                    elif (eventMessage == "alto_N"):
+                    elif event_message == "alto_N":
                         redeSortingByHeight.atualizar_variavel("alto", 0)
-                    # Atualiza a rede e printa o estado atual
                     else:
-                        redeSortingByHeight.processar_evento(eventMessage)
+                        redeSortingByHeight.processar_evento(event_message)
 
-                await asyncio.sleep(0.5)
+                    print(event_message)
+
+                finally:
+                    event_queue.task_done()
 
         except KeyboardInterrupt:
-
             print("\nEncerrando...")
 
         finally:
-
             await subscription.delete()
 
 
