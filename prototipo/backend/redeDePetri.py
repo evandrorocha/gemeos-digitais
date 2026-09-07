@@ -131,7 +131,7 @@ class RedePetri:
         # 2. Encontrar transições habilitadas
         disponiveis = self.transicoes_disponiveis()
 
-        # 3. Encontrar transições habilitadas que esteja associadas ao evento
+        # 3. Encontrar transições habilitadas que estejam associadas ao evento
         transicoes_escolhidas = []
         lugar_origem = None
 
@@ -161,7 +161,7 @@ class RedePetri:
             mensagens.append(
                 f"Evento '{evento}': "
                 f"transicao '{transicao}' disparada "
-                f"a partir de '{lugar_origem}'."
+                f"a partir de '{lugares_origem}'."
             )
 
         # 6. Disparar automaticamente as transições lambda
@@ -170,7 +170,7 @@ class RedePetri:
             disponiveis = self.transicoes_disponiveis()
 
             transicao_lambda = None
-            lugar_origem = None
+            lugares_origem = None
 
             # Procurar uma transição lambda habilitada
             for transicao, lugares in disponiveis.items():
@@ -178,7 +178,7 @@ class RedePetri:
                 # Uma transição é lambda se não estiver associada a nenhum evento
                 if not any(transicao in transicoes for transicoes in self.eventos.values()):
                     transicao_lambda = transicao
-                    lugar_origem = lugares[0]
+                    lugares_origem = lugares
                     break
 
             # Nenhuma lambda habilitada
@@ -186,7 +186,8 @@ class RedePetri:
                 break
 
             # Disparar lambda
-            self.estados[lugar_origem] -= 1
+            for lugar in lugares_origem:
+                self.estados[lugar] -= 1
 
             lugares_destino = self.transicoes2lugares[transicao_lambda]
 
@@ -197,10 +198,10 @@ class RedePetri:
 
             mensagens.append(
                 f"Transicao lambda '{transicao_lambda}' "
-                f"disparada a partir de '{lugar_origem}'."
+                f"disparada a partir de '{lugares_origem}'."
             )
 
-        return True, "\n".join(mensagens)
+        return True, " \n ".join(mensagens)
 
     # VISUALIZAÇÃO
     def mostrar_estados(self):
