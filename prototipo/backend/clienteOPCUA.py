@@ -15,7 +15,7 @@ PLC_PRG_NODE = (
 lugares = {"p1": 1, "p2": 0, "p3": 0, "p4": 0, 
            "p5": 0, "p6": 0, "p7": 0, "p8": 0, 
            "p9": 0, "p10": 0, "p11": 0, "p12": 0, 
-           "p13": 0, "p14": 1, "p15": 0, "p16": 1}
+           "p13": 0, "p16": 1} # "p14": 1, "p15": 0
 
 lugares2transicoes = {"p1": ["t1"], 
                         "p2": ["t2"],
@@ -167,10 +167,10 @@ async def main():
                         redeSortingByHeight.atualizar_variavel("alto", 0)
                         print(redeSortingByHeight.variaveis["alto"])
                     elif event_message in eventos:
-                        print(event_message)
+                        # print(event_message)
                         print(redeSortingByHeight.processar_evento(event_message))
 
-                    # redeSortingByHeight.mostrar_estados()
+                    redeSortingByHeight.mostrar_estados()
 
                 finally:
                     event_queue.task_done()
