@@ -222,6 +222,7 @@ class DigitalTwinConnector:
     async def reset_plant(self):
         """Envia o comando de reset para restabelecer a operação normal e a marcação inicial de Petri."""
         logger.info("🔄 [RESET] Enviando comando de reset e restaurando marcação inicial no CLP...")
+        self.petri_engine.clear_anomalies()
         self.petri_engine.reset()
         
         # 1. Configura a meta do contador CTU

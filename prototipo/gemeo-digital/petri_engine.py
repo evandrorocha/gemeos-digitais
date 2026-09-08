@@ -233,10 +233,9 @@ class PetriNetEngine:
     - Reporta anomalias estruturadas em tempo real e orquestra a parada autônoma de segurança.
     """
 
-    MONITORED_SENSORS = [
-        "palletSensor", "highSensor", "loaded",
-        "atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"
-    ]
+    NO_SENSORS = ["palletSensor", "highSensor", "loaded"]
+    NC_SENSORS = ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit", "stop"]
+    MONITORED_SENSORS = ["palletSensor", "highSensor", "loaded", "atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]
 
     def __init__(self):
         # Núcleo formal da Rede de Petri
@@ -299,17 +298,29 @@ class PetriNetEngine:
         # Detecção de borda (Rising Edge: _P, Falling Edge: _N)
         edge_event = None
         if isinstance(val, bool):
-            if val is True and (old_val is False or old_val is None):
-                # Tags industriais normalmente fechadas (NC: 1 = livre/seguro) não geram borda de subida ao conectar em repouso (p1)
-                is_nc_tag = tag in ["stop", "atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]
-                if old_val is None and is_nc_tag and self.petri_net.estados.get("p1", 0) > 0:
+            if val is True and old_val is not True:
+                # Se for a primeira leitura da conexão (old_val is None) em repouso e a tag for NF, não gera falso pulso
+                if old_val is None and tag in self.NC_SENSORS and self.petri_net.estados.get("p1", 0) > 0:
                     pass
                 else:
                     edge_event = f"{tag}_P"
-                    self._sensor_high_start_time[tag] = now
-            elif val is False and old_val is True:
-                edge_event = f"{tag}_N"
-                self._sensor_high_start_time[tag] = None
+                    if tag in self.NO_SENSORS:
+                        self._sensor_high_start_time[tag] = now
+                    else:
+                        # Sensor NC desobstruído (feixe restaurado): limpa timer
+                        self._sensor_high_start_time[tag] = None
+            elif val is False and old_val is not False:
+                # Se for a primeira leitura da conexão (old_val is None) em repouso e a tag for NA, não gera falso pulso
+                if old_val is None and tag in self.NO_SENSORS and self.petri_net.estados.get("p1", 0) > 0:
+                    pass
+                else:
+                    edge_event = f"{tag}_N"
+                    if tag in self.NC_SENSORS:
+                        # Sensor NC cortado/bloqueado: inicia timer de permanência
+                        self._sensor_high_start_time[tag] = now
+                    else:
+                        # Sensor NA livre: limpa timer
+                        self._sensor_high_start_time[tag] = None
         elif isinstance(val, (int, float)):
             # Tags numéricas (ex: contador do CLP)
             if old_val is not None and val != old_val:
@@ -331,24 +342,29 @@ class PetriNetEngine:
         # ---------------------------------------------------------------------
         # AUTO-RECUPERAÇÃO: Remove anomalias ativas quando a condição física normaliza
         # ---------------------------------------------------------------------
-        # 1. Se o sensor travado em nível alto (Stuck ON) voltou para False (_N):
-        if edge_event and edge_event.endswith("_N"):
+        # 1. Qualquer transição de um sensor (_P ou _N) prova que ele não está travado
+        if edge_event:
             sensor_name = edge_event[:-2]
-            self.auto_clear_anomaly_for_component(sensor_name, anomaly_type="SENSOR_STUCK_ON")
+            if sensor_name in self.MONITORED_SENSORS or sensor_name == "stop":
+                self.auto_clear_anomaly_for_component(sensor_name)
 
-        # 2. Se a inconsistência óptica de altura foi corrigida (feixe liberado ou presença restabelecida):
+        # 2. Se a inconsistência óptica de altura foi corrigida:
         if not self.tags.get("highSensor") or self.tags.get("palletSensor"):
-            self.auto_clear_anomaly_for_component("highSensor", anomaly_type="SENSOR_STUCK_ON")
+            self.auto_clear_anomaly_for_component("highSensor")
+
+        # 3. Ao iniciar novo ciclo (start_P) ou reset (reset_P), limpa anomalias
+        if edge_event in ["start_P", "reset_P"]:
+            self.clear_anomalies()
+            self.auto_clear_anomaly_for_component("highSensor")
 
         # 3. Se um sensor que estava com Stuck OFF ou Timeout voltou a emitir pulso (_P):
         if edge_event and edge_event.endswith("_P"):
             sensor_name = edge_event[:-2]
-            self.auto_clear_anomaly_for_component(sensor_name, anomaly_type="SENSOR_STUCK_OFF")
-            self.auto_clear_anomaly_for_component(sensor_name, anomaly_type="TRANSPORT_TIMEOUT")
+            self.auto_clear_anomaly_for_component(sensor_name)
 
-        # 4. Ao iniciar novo ciclo (start_P), limpa anomalias de transição ilegal antigas
-        if edge_event == "start_P":
-            self.auto_clear_anomaly_for_component("", anomaly_type="ILLEGAL_TRANSITION")
+        # 4. Ao iniciar novo ciclo (start_P) ou reset (reset_P), limpa anomalias
+        if edge_event in ["start_P", "reset_P"]:
+            self.clear_anomalies()
 
         # Rastreamento da rota de classificação ativa (Esquerda = Baixa, Direita = Alta)
         if edge_event == "transferLeft_P" or (tag == "transferLeft" and val):
@@ -404,6 +420,20 @@ class PetriNetEngine:
         elif tag == "conveyorEntry" and not val:
             self._box_in_transit_start_time = None
 
+        # Se a linha está em repouso (p1), eventos de alimentação (entrada) ou desobstrução/saída residual
+        # nas esteiras de saída (purga de caixas anteriores) são comportamentos físicos normais.
+        if self.petri_net.estados.get("p1", 0) > 0 and edge_event != "start_P":
+            if edge_event == "palletSensor_P":
+                self._box_in_transit_start_time = now
+            return self.check_anomalies()
+
+        # Se um sensor de saída (atLeftExit ou atRightExit) aciona fora de p7/p9 mas sem pular entrada (não em p6/p8),
+        # trata-se do escoamento normal de uma caixa de ciclo anterior pela esteira de saída.
+        if edge_event == "atLeftExit_P" and self.petri_net.estados.get("p6", 0) == 0 and self.petri_net.estados.get("p7", 0) == 0:
+            return self.check_anomalies()
+        if edge_event == "atRightExit_P" and self.petri_net.estados.get("p8", 0) == 0 and self.petri_net.estados.get("p9", 0) == 0:
+            return self.check_anomalies()
+
         # Disparo da transição formal na Rede de Petri caso o evento pertença ao modelo
         if edge_event and edge_event in self.petri_net.eventos:
             sucesso, msg = self.petri_net.processar_evento(edge_event)
@@ -411,6 +441,11 @@ class PetriNetEngine:
                 # Transição não permitida: O evento ocorreu fora da ordem esperada da planta!
                 anomaly = self._diagnose_sequence_violation(edge_event, msg)
                 return self._register_anomaly(anomaly)
+
+            # Se acabamos de dar partida (p1 -> p2) e já existia uma caixa aguardando no palletSensor:
+            if edge_event == "start_P" and self.tags.get("palletSensor"):
+                if self.petri_net.estados.get("p2", 0) > 0:
+                    self.petri_net.processar_evento("palletSensor_P")
 
         # Executa a checagem contínua de anomalias (timeouts e stuck)
         return self.check_anomalies()
@@ -485,33 +520,18 @@ class PetriNetEngine:
                 suggested_action="Inspecione o sensor 'atRightEntry' no Factory I/O (remova a falha Fail OFF)."
             )
 
-        # Caso 4: Qualquer sensor acionando com a planta parada (Repouso em p1)
-        if self.petri_net.estados.get("p1", 0) > 0 and edge_event not in ["start_P", "reset_P"]:
-            comp_name = edge_event.replace("_P", "").replace("_N", "")
-            return AnomalyReport(
-                anomaly_id=f"ANOM_SPURIOUS_{comp_name}_{int(now)}",
-                anomaly_type="ILLEGAL_TRANSITION",
-                severity="CRITICAL",
-                component=f"{comp_name} (Sensor)",
-                message=f"Disparo Espúrio: Sensor '{comp_name}' acionado com a planta em repouso (Estado p1). Sensor travado em curto ou acionamento indevido!",
-                timestamp_iso=now_iso,
-                timestamp_unix=now,
-                current_marking=current_active,
-                suggested_action=f"Verifique se o sensor '{comp_name}' está em curto ou com falha Fail ON no Factory I/O."
-            )
-
-        # Caso genérico de violação formal
+        # Violação formal de sequência em estados ativos
         comp_name = edge_event.replace("_P", "").replace("_N", "")
         return AnomalyReport(
             anomaly_id=f"ANOM_ILLEGAL_TRANS_{int(now)}",
             anomaly_type="ILLEGAL_TRANSITION",
             severity="CRITICAL",
             component=comp_name,
-            message=f"Violação Formal de Estados: O evento '{edge_event}' não possui transição habilitada na marcação atual. {error_msg}",
+            message=f"Violação Formal de Estados: O evento '{edge_event}' ocorreu fora da sequência esperada na marcação {current_active}. {error_msg}",
             timestamp_iso=now_iso,
             timestamp_unix=now,
             current_marking=current_active,
-            suggested_action="Verifique o alinhamento da planta, sensores e ordem de despacho das caixas."
+            suggested_action=f"Verifique o alinhamento da planta, sensores e se o componente '{comp_name}' falhou ou foi acionado indevidamente."
         )
 
     def check_anomalies(self) -> Optional[AnomalyReport]:
@@ -543,27 +563,60 @@ class PetriNetEngine:
             return self._register_anomaly(anomaly)
 
         # ---------------------------------------------------------------------
-        # REGRA 2: Detecção de Sensor Travado em Nível Lógico Alto (Stuck ON)
+        # REGRA 2: Detecção de Sensor Travado (Stuck ON para NA / Obstrução Contínua para NF)
         # ---------------------------------------------------------------------
         for sensor in self.MONITORED_SENSORS:
-            if self.tags.get(sensor):
+            # Determina se o sensor está detectando presença de objeto:
+            # Sensores NA (palletSensor, highSensor, loaded): ativos quando True (1)
+            # Sensores NF retrorreflexivos (atLeftEntry, atLeftExit, atRightEntry, atRightExit): ativos quando False (0, feixe cortado)
+            is_sensor_active = False
+            if sensor in self.NO_SENSORS:
+                is_sensor_active = bool(self.tags.get(sensor))
+            elif sensor in self.NC_SENSORS:
+                is_sensor_active = (self.tags.get(sensor) is False)
+
+            if is_sensor_active:
+                actuator_running = False
+                if sensor in ["palletSensor", "highSensor"]:
+                    actuator_running = bool(self.tags.get("conveyorEntry")) or (self.petri_net.estados.get("p2", 0) > 0)
+                elif sensor == "loaded":
+                    actuator_running = bool(self.tags.get("conveyorEntry") or self.tags.get("transferLeft") or self.tags.get("transferRight"))
+                elif sensor in ["atLeftEntry", "atLeftExit"]:
+                    actuator_running = bool(self.tags.get("conveyorLeft") or self.tags.get("transferLeft"))
+                elif sensor in ["atRightEntry", "atRightExit"]:
+                    actuator_running = bool(self.tags.get("conveyorRight") or self.tags.get("transferRight"))
+                else:
+                    actuator_running = True
+
+                if not actuator_running:
+                    self._sensor_high_start_time[sensor] = now
+                    continue
+
                 start_time = self._sensor_high_start_time.get(sensor)
                 if start_time:
                     elapsed = now - start_time
-                    # Se o sensor ficar ligado por mais tempo que o permitido:
                     if elapsed > MAX_PRESENCE_TIME_SEC:
+                        if sensor in self.NO_SENSORS:
+                            msg = f"Sensor '{sensor}' travado em nível alto por {elapsed:.1f}s (> {MAX_PRESENCE_TIME_SEC:.1f}s) com a esteira rodando. Falha Stuck ON!"
+                            action = f"Inspecione o sensor '{sensor}' no Factory I/O (remova a falha Fail ON)."
+                        else:
+                            msg = f"Sensor retrorreflexivo '{sensor}' com feixe cortado continuamente por {elapsed:.1f}s (> {MAX_PRESENCE_TIME_SEC:.1f}s) com a esteira rodando. Caixa enroscada ou falha Fail OFF / desalinhamento!"
+                            action = f"Verifique se há caixa enroscada no sensor '{sensor}' ou remova a falha Fail OFF no Factory I/O."
+
                         anomaly = AnomalyReport(
-                            anomaly_id=f"ANOM_STUCK_ON_{sensor.upper()}_{int(now)}",
+                            anomaly_id=f"ANOM_STUCK_{sensor.upper()}_{int(now)}",
                             anomaly_type="SENSOR_STUCK_ON",
                             severity="CRITICAL",
-                            component=f"{sensor} (Sensor de Presença/Detecção)",
-                            message=f"Sensor '{sensor}' travado em nível alto por {elapsed:.1f}s (> {MAX_PRESENCE_TIME_SEC:.1f}s) com a planta em operação. Falha Stuck ON!",
+                            component=f"{sensor} (Sensor)",
+                            message=msg,
                             timestamp_iso=now_iso,
                             timestamp_unix=now,
                             current_marking=current_active,
-                            suggested_action=f"Inspecione o sensor '{sensor}' no Factory I/O (remova a falha Fail ON ou desobstrua o feixe óptico)."
+                            suggested_action=action
                         )
                         return self._register_anomaly(anomaly)
+            else:
+                self._sensor_high_start_time[sensor] = None
 
         # ---------------------------------------------------------------------
         # REGRA 3: Timeout de Transporte na Entrada (Caixa não atinge 'loaded')

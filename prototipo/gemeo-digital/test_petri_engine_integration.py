@@ -203,6 +203,74 @@ def test_auto_recovery():
     print("✅ TESTE 7 PASSOU COM SUCESSO!\n")
 
 
+def test_pallet_arrival_in_resting_state():
+    print("=== TESTE 8: Chegada de Caixa em Repouso (p1) sem Falso Alarme ===")
+    engine = PetriNetEngine()
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY"
+    assert "p1" in summary["active_places"]
+
+    # Caixa chega no palletSensor enquanto a planta ainda está parada em repouso (p1)
+    engine.update_from_sanitized_event(make_event("palletSensor", True))
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY", "Caixa na entrada em repouso NÃO pode ser considerada anomalia!"
+    assert len(summary["active_anomalies"]) == 0
+    print("✅ Caixa posicionada no palletSensor em p1 não gerou falso alarme!")
+
+    # Operador agora pressiona START (start_P)
+    engine.update_from_sanitized_event(make_event("start", True))
+    engine.update_from_sanitized_event(make_event("start", False))
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY"
+    # A caixa que já estava no palletSensor é consumida imediatamente e avança para p4!
+    assert "p4" in summary["active_places"]
+    assert "p16" not in summary["active_places"]  # Mesa reservada
+    print("✅ START consumiu a peça pré-existente e avançou perfeitamente para p4!")
+    print("✅ TESTE 8 PASSOU COM SUCESSO!\n")
+
+
+def test_exit_sensor_clearing_in_resting_state():
+    print("=== TESTE 9: Caixa Residual Saindo em Repouso (atLeftExit em p1) sem Falso Alarme ===")
+    engine = PetriNetEngine()
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY"
+    assert "p1" in summary["active_places"]
+
+    # Uma caixa que estava na esteira esquerda termina de sair (feixe cortado e depois desobstruído)
+    engine.update_from_sanitized_event(make_event("atLeftExit", False))
+    engine.update_from_sanitized_event(make_event("atLeftExit", True))
+
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY", "Caixa saindo da linha em repouso NÃO pode gerar alarme!"
+    assert len(summary["active_anomalies"]) == 0
+    assert summary["caixas_esquerda"] == 1
+    assert summary["caixas_total"] == 1
+    print("✅ Caixa residual na saída em p1 foi contabilizada sem gerar falso alarme!")
+    print("✅ TESTE 9 PASSOU COM SUCESSO!\n")
+
+
+def test_nc_sensors_normal_running_no_false_stuck_on():
+    print("=== TESTE 10: Sensores Retrorreflexivos (NF) em Operação Normal não Disparam Falso Stuck ON ===")
+    engine = PetriNetEngine()
+    engine.update_from_sanitized_event(make_event("start", True))
+    engine.update_from_sanitized_event(make_event("conveyorLeft", True))
+    engine.update_from_sanitized_event(make_event("conveyorRight", True))
+
+    # Sensores atLeftExit e atRightExit em estado livre/normal (True)
+    engine.update_from_sanitized_event(make_event("atLeftExit", True))
+    engine.update_from_sanitized_event(make_event("atRightExit", True))
+
+    # Passam 15 segundos de esteira rodando vazia
+    time.sleep(0.01)
+    anomaly = engine.check_anomalies()
+    assert anomaly is None
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY"
+    assert len(summary["active_anomalies"]) == 0
+    print("✅ Sensores NF desobstruídos em esteira rodando operam perfeitamente sem falso alarme!")
+    print("✅ TESTE 10 PASSOU COM SUCESSO!\n")
+
+
 if __name__ == "__main__":
     test_normal_cycle()
     test_pallet_sensor_stuck_off()
@@ -211,4 +279,7 @@ if __name__ == "__main__":
     test_transit_timeout()
     test_reset_cleans_phantom_tokens()
     test_auto_recovery()
-    print("🎉 TODOS OS 7 TESTES DE INTEGRAÇÃO PASSARAM COM SUCESSO!")
+    test_pallet_arrival_in_resting_state()
+    test_exit_sensor_clearing_in_resting_state()
+    test_nc_sensors_normal_running_no_false_stuck_on()
+    print("🎉 TODOS OS 10 TESTES DE INTEGRAÇÃO PASSARAM COM SUCESSO!")

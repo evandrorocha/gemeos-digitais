@@ -46,6 +46,7 @@ st.markdown("""
         padding: 16px;
         text-align: center;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        margin-bottom: 16px;
     }
     .status-healthy {
         color: #10b981;
@@ -253,6 +254,11 @@ def render_live_dashboard():
             <div style="color: #34d399; font-size: 1.4rem; font-weight: bold;">{', '.join(active_p) if active_p else 'p1'}</div>
         </div>
         """, unsafe_allow_html=True)
+
+    # -------------------------------------------------------------------------
+    # ESPAÇAMENTO VERTICAL ENTRE LINHAS DE MÉTRICAS
+    # -------------------------------------------------------------------------
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 
     # -------------------------------------------------------------------------
     # CARDS DE CLASSIFICAÇÃO DE PRODUÇÃO (ESQUERDA / DIREITA)
