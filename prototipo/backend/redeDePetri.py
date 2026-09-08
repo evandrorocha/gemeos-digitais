@@ -133,7 +133,6 @@ class RedePetri:
 
         # 3. Encontrar transições habilitadas que estejam associadas ao evento
         transicoes_escolhidas = []
-        lugar_origem = None
 
         for transicao in transicoes_evento:
             if transicao in disponiveis:
@@ -154,6 +153,7 @@ class RedePetri:
                 self.estados[lugar] -= 1
 
             lugares_destino = self.transicoes2lugares[transicao]
+
             for lugar in lugares_destino:
                 if lugar in self.estados:
                     self.estados[lugar] += 1
@@ -192,7 +192,6 @@ class RedePetri:
             lugares_destino = self.transicoes2lugares[transicao_lambda]
 
             for lugar in lugares_destino:
-
                 if lugar in self.estados:
                     self.estados[lugar] += 1
 
@@ -201,7 +200,7 @@ class RedePetri:
                 f"disparada a partir de '{lugares_origem}'."
             )
 
-        return True, " \n ".join(mensagens)
+        return True, "\n".join(mensagens)
 
     # VISUALIZAÇÃO
     def mostrar_estados(self):

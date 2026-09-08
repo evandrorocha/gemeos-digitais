@@ -167,7 +167,6 @@ async def main():
                         redeSortingByHeight.atualizar_variavel("alto", 0)
                         print(redeSortingByHeight.variaveis["alto"])
                     elif event_message in eventos:
-                        # print(event_message)
                         print(redeSortingByHeight.processar_evento(event_message))
 
                     redeSortingByHeight.mostrar_estados()
