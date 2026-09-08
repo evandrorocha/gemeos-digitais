@@ -293,12 +293,11 @@ def render_live_dashboard():
     # -------------------------------------------------------------------------
     # ABAS PRINCIPAIS DO SUPERVISÓRIO
     # -------------------------------------------------------------------------
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "🏭 Sinótico da Planta 2D",
         "🕸️ Grafo da Rede de Petri",
         "📜 Auditoria & Governança (ISO/IEC 30173)",
-        "📦 Modelo AAS (Eclipse BaSyx)",
-        "🏗️ Visualização 3D (BIM/IFC)"
+        "📦 Modelo AAS (Eclipse BaSyx)"
     ])
 
     # -------------------------------------------------------------------------
@@ -491,18 +490,18 @@ def render_live_dashboard():
         )
 
     # -------------------------------------------------------------------------
-    # TAB 5: VISUALIZAÇÃO 3D A PARTIR DO MODELO BIM/IFC REAL
+    # TAB 5: VISUALIZAÇÃO 3D A PARTIR DO MODELO BIM/IFC REAL (OCULTA TEMPORARIAMENTE)
     # -------------------------------------------------------------------------
-    with tab5:
-        st.subheader("Cena 3D gerada a partir do modelo IFC real (ISO 16739)")
-        st.caption("Geometria extraída via ifcopenshell de `gemeo-digital/models/sorting_by_height.ifc`. Cada elemento é colorido pelo estado ao vivo do Gêmeo Digital: cinza = parado, verde = ativo/detectando, vermelho = componente citado em anomalia crítica.")
-
-        if ifc_viewer is None or not ifc_viewer.ifc_model_available():
-            st.warning("Visualização IFC indisponível (pacote ifcopenshell ausente ou modelo IFC não encontrado).")
-        else:
-            fig_3d = ifc_viewer.build_3d_figure(tags, petri)
-            st.plotly_chart(fig_3d, use_container_width=True, key="ifc_3d_view")
-            st.caption("Coordenadas nominais/aproximadas (não medidas via laser scan da cena real do Factory I/O) — ver `models/build_ifc_model.py`.")
+    # with tab5:
+    #     st.subheader("Cena 3D gerada a partir do modelo IFC real (ISO 16739)")
+    #     st.caption("Geometria extraída via ifcopenshell de `gemeo-digital/models/sorting_by_height.ifc`. Cada elemento é colorido pelo estado ao vivo do Gêmeo Digital: cinza = parado, verde = ativo/detectando, vermelho = componente citado em anomalia crítica.")
+    # 
+    #     if ifc_viewer is None or not ifc_viewer.ifc_model_available():
+    #         st.warning("Visualização IFC indisponível (pacote ifcopenshell ausente ou modelo IFC não encontrado).")
+    #     else:
+    #         fig_3d = ifc_viewer.build_3d_figure(tags, petri)
+    #         st.plotly_chart(fig_3d, use_container_width=True, key="ifc_3d_view")
+    #         st.caption("Coordenadas nominais/aproximadas (não medidas via laser scan da cena real do Factory I/O) — ver `models/build_ifc_model.py`.")
 
 
 # Renderiza o dashboard ao vivo
