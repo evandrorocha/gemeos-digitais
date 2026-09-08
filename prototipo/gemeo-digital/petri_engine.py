@@ -352,11 +352,6 @@ class PetriNetEngine:
         if not self.tags.get("highSensor") or self.tags.get("palletSensor"):
             self.auto_clear_anomaly_for_component("highSensor")
 
-        # 3. Ao iniciar novo ciclo (start_P) ou reset (reset_P), limpa anomalias
-        if edge_event in ["start_P", "reset_P"]:
-            self.clear_anomalies()
-            self.auto_clear_anomaly_for_component("highSensor")
-
         # 3. Se um sensor que estava com Stuck OFF ou Timeout voltou a emitir pulso (_P):
         if edge_event and edge_event.endswith("_P"):
             sensor_name = edge_event[:-2]
@@ -365,6 +360,7 @@ class PetriNetEngine:
         # 4. Ao iniciar novo ciclo (start_P) ou reset (reset_P), limpa anomalias
         if edge_event in ["start_P", "reset_P"]:
             self.clear_anomalies()
+            self.auto_clear_anomaly_for_component("highSensor")
 
         # Rastreamento da rota de classificação ativa (Esquerda = Baixa, Direita = Alta)
         if edge_event == "transferLeft_P" or (tag == "transferLeft" and val):
@@ -380,7 +376,7 @@ class PetriNetEngine:
         # Atualização dos rastreadores de movimento físico e contadores de produção
         if edge_event == "palletSensor_P":
             self._box_in_transit_start_time = now
-        elif edge_event == "loaded_P":
+        elif edge_event in ["loaded_P", "loaded_N"]:
             self._box_in_transit_start_time = None
         elif edge_event == "atLeftEntry_P":
             self._exit_left_start_time = now
@@ -434,6 +430,11 @@ class PetriNetEngine:
         if edge_event == "atRightExit_P" and self.petri_net.estados.get("p8", 0) == 0 and self.petri_net.estados.get("p9", 0) == 0:
             return self.check_anomalies()
 
+        # Verificação imediata: Peça chegou em loaded sem token em p4 (palletSensor não detectou a peça)
+        if edge_event == "loaded_P" and self.petri_net.estados.get("p4", 0) == 0 and self.petri_net.estados.get("p2", 0) > 0:
+            anomaly = self._diagnose_sequence_violation(edge_event, "Peça atingiu a mesa transfer sem detecção no palletSensor")
+            return self._register_anomaly(anomaly)
+
         # Disparo da transição formal na Rede de Petri caso o evento pertença ao modelo
         if edge_event and edge_event in self.petri_net.eventos:
             sucesso, msg = self.petri_net.processar_evento(edge_event)
@@ -478,14 +479,14 @@ class PetriNetEngine:
         now_iso = datetime.now(timezone.utc).isoformat()
         current_active = [p for p, fichas in self.petri_net.estados.items() if fichas > 0]
 
-        # Caso 1: Sensor loaded acionou sem passar pelo palletSensor (Stuck OFF na entrada)
-        if edge_event == "loaded_P" and self.petri_net.estados.get("p2", 0) > 0:
+        # Caso 1: Sensor loaded acionou sem passar pelo palletSensor (p4 vazio e p2 ativo -> Stuck OFF na entrada)
+        if edge_event == "loaded_P" and self.petri_net.estados.get("p4", 0) == 0 and self.petri_net.estados.get("p2", 0) > 0:
             return AnomalyReport(
                 anomaly_id=f"ANOM_SEQ_PALLET_{int(now)}",
                 anomaly_type="SENSOR_STUCK_OFF",
                 severity="CRITICAL",
                 component="palletSensor (Sensor de Presença na Entrada)",
-                message="Violação de Sequência: Peça atingiu a mesa transfer (loaded_P) sem ser detectada pelo sensor de entrada. Sensor 'palletSensor' falhou (Stuck OFF / Aberto)!",
+                message="Violação de Sequência: Peça atingiu a mesa transfer (loaded) sem ser detectada pelo sensor de entrada. Sensor 'palletSensor' falhou (Stuck OFF / Aberto)!",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
                 current_marking=current_active,
@@ -580,7 +581,8 @@ class PetriNetEngine:
                 if sensor in ["palletSensor", "highSensor"]:
                     actuator_running = bool(self.tags.get("conveyorEntry")) or (self.petri_net.estados.get("p2", 0) > 0)
                 elif sensor == "loaded":
-                    actuator_running = bool(self.tags.get("conveyorEntry") or self.tags.get("transferLeft") or self.tags.get("transferRight"))
+                    # Sensor da mesa: só avalia Stuck ON se conveyorEntry estiver alimentando e a mesa NÃO estiver em rotação/transferência
+                    actuator_running = bool(self.tags.get("conveyorEntry")) and not (self.tags.get("transferLeft") or self.tags.get("transferRight"))
                 elif sensor in ["atLeftEntry", "atLeftExit"]:
                     actuator_running = bool(self.tags.get("conveyorLeft") or self.tags.get("transferLeft"))
                 elif sensor in ["atRightEntry", "atRightExit"]:
@@ -593,28 +595,32 @@ class PetriNetEngine:
                     continue
 
                 start_time = self._sensor_high_start_time.get(sensor)
-                if start_time:
-                    elapsed = now - start_time
-                    if elapsed > MAX_PRESENCE_TIME_SEC:
-                        if sensor in self.NO_SENSORS:
-                            msg = f"Sensor '{sensor}' travado em nível alto por {elapsed:.1f}s (> {MAX_PRESENCE_TIME_SEC:.1f}s) com a esteira rodando. Falha Stuck ON!"
-                            action = f"Inspecione o sensor '{sensor}' no Factory I/O (remova a falha Fail ON)."
-                        else:
-                            msg = f"Sensor retrorreflexivo '{sensor}' com feixe cortado continuamente por {elapsed:.1f}s (> {MAX_PRESENCE_TIME_SEC:.1f}s) com a esteira rodando. Caixa enroscada ou falha Fail OFF / desalinhamento!"
-                            action = f"Verifique se há caixa enroscada no sensor '{sensor}' ou remova a falha Fail OFF no Factory I/O."
+                if start_time is None:
+                    self._sensor_high_start_time[sensor] = now
+                    start_time = now
 
-                        anomaly = AnomalyReport(
-                            anomaly_id=f"ANOM_STUCK_{sensor.upper()}_{int(now)}",
-                            anomaly_type="SENSOR_STUCK_ON",
-                            severity="CRITICAL",
-                            component=f"{sensor} (Sensor)",
-                            message=msg,
-                            timestamp_iso=now_iso,
-                            timestamp_unix=now,
-                            current_marking=current_active,
-                            suggested_action=action
-                        )
-                        return self._register_anomaly(anomaly)
+                elapsed = now - start_time
+                max_time = 5.0 if sensor in ["palletSensor", "highSensor"] else MAX_PRESENCE_TIME_SEC
+                if elapsed > max_time:
+                    if sensor in self.NO_SENSORS:
+                        msg = f"Sensor '{sensor}' travado em nível alto por {elapsed:.1f}s (> {max_time:.1f}s) com a esteira rodando. Falha Stuck ON!"
+                        action = f"Inspecione o sensor '{sensor}' no Factory I/O (remova a falha Fail ON)."
+                    else:
+                        msg = f"Sensor retrorreflexivo '{sensor}' com feixe cortado continuamente por {elapsed:.1f}s (> {max_time:.1f}s) com a esteira rodando. Caixa enroscada ou falha Fail OFF / desalinhamento!"
+                        action = f"Verifique se há caixa enroscada no sensor '{sensor}' ou remova a falha Fail OFF no Factory I/O."
+
+                    anomaly = AnomalyReport(
+                        anomaly_id=f"ANOM_STUCK_{sensor.upper()}_{int(now)}",
+                        anomaly_type="SENSOR_STUCK_ON",
+                        severity="CRITICAL",
+                        component=f"{sensor} (Sensor)",
+                        message=msg,
+                        timestamp_iso=now_iso,
+                        timestamp_unix=now,
+                        current_marking=current_active,
+                        suggested_action=action
+                    )
+                    return self._register_anomaly(anomaly)
             else:
                 self._sensor_high_start_time[sensor] = None
 
@@ -623,7 +629,7 @@ class PetriNetEngine:
         # ---------------------------------------------------------------------
         if self._box_in_transit_start_time and self.tags.get("conveyorEntry"):
             elapsed = now - self._box_in_transit_start_time
-            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not self.tags.get("loaded"):
+            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC:
                 anomaly = AnomalyReport(
                     anomaly_id=f"ANOM_TIMEOUT_LOADED_{int(now)}",
                     anomaly_type="TRANSPORT_TIMEOUT",
