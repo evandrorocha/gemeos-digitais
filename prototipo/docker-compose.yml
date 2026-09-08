@@ -12,6 +12,7 @@ services:
     volumes:
       - ./gemeo-digital:/app/gemeo-digital
       - ./dashboard:/app/dashboard
+      - ./backend:/app/backend
     environment:
       # Conecta ao servidor CODESYS OPC UA rodando no host Windows
       - OPCUA_SERVER_URL=opc.tcp://host.docker.internal:4840

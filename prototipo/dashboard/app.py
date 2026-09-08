@@ -138,10 +138,17 @@ with st.sidebar:
             st.toast("Comando RESET enviado! Falhas limpas.", icon="🔄")
             st.rerun()
 
-    if st.button("🛑 PARADA DE EMERGÊNCIA", use_container_width=True):
-        service.execute_async(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"))
-        st.toast("PARADA DE EMERGÊNCIA ATIVADA!", icon="🛑")
-        st.rerun()
+    col_e1, col_e2 = st.columns(2)
+    with col_e1:
+        if st.button("🛑 PARADA EMERG.", use_container_width=True):
+            service.execute_async(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"))
+            st.toast("PARADA DE EMERGÊNCIA ATIVADA!", icon="🛑")
+            st.rerun()
+    with col_e2:
+        if st.button("🗑️ ZERAR CONTAGEM", use_container_width=True):
+            dt.petri_engine.reset(reset_counters=True)
+            st.toast("Contadores zerados!", icon="🗑️")
+            st.rerun()
 
     st.markdown("---")
     st.subheader("🧪 Injeção de Falhas (Testes)")
@@ -185,15 +192,27 @@ def render_live_dashboard():
     tags = petri["tags_state"]
     health = petri["health_status"]
     anomalies = petri["active_anomalies"]
+    caixas_esq = petri.get("caixas_esquerda", 0)
+    caixas_dir = petri.get("caixas_direita", 0)
+    caixas_tot = petri.get("caixas_total", caixas_esq + caixas_dir)
 
     # Banner de Alerta Crítico se houver falha
     if health == "CRITICAL_FAULT":
-        st.error(f"""
-        ### 🚨 PARADA DE EMERGÊNCIA ATIVADA PELO GÊMEO DIGITAL!
-        **Anomalia Detectada:** {anomalies[0]['message'] if anomalies else 'Violação no modelo de segurança'}  
-        **Componente Afetado:** `{anomalies[0]['component'] if anomalies else 'Desconhecido'}`  
-        **Ação Recomendada:** {anomalies[0]['suggested_action'] if anomalies else 'Inspecione a planta física'}
-        """)
+        col_b1, col_b2 = st.columns([5, 1])
+        with col_b1:
+            st.error(f"""
+            ### 🚨 PARADA DE EMERGÊNCIA ATIVADA PELO GÊMEO DIGITAL!
+            **Anomalia Detectada:** {anomalies[0]['message'] if anomalies else 'Violação no modelo de segurança'}  
+            **Componente Afetado:** `{anomalies[0]['component'] if anomalies else 'Desconhecido'}`  
+            **Ação Recomendada:** {anomalies[0]['suggested_action'] if anomalies else 'Inspecione a planta física'}
+            """)
+        with col_b2:
+            st.write("")
+            st.write("")
+            if st.button("🔄 RESET / LIMPAR", key="btn_reset_banner", use_container_width=True, type="primary"):
+                service.execute_async(dt.reset_plant())
+                st.toast("Linha resetada e falhas limpas!", icon="🔄")
+                st.rerun()
 
     # -------------------------------------------------------------------------
     # CARDS DE MÉTRICAS (KPIs)
@@ -232,6 +251,34 @@ def render_live_dashboard():
         <div class="metric-card">
             <div style="color: #9ca3af; font-size: 0.9rem;">ESTADO ATIVO (PETRI)</div>
             <div style="color: #34d399; font-size: 1.4rem; font-weight: bold;">{', '.join(active_p) if active_p else 'p1'}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # -------------------------------------------------------------------------
+    # CARDS DE CLASSIFICAÇÃO DE PRODUÇÃO (ESQUERDA / DIREITA)
+    # -------------------------------------------------------------------------
+    col_p1, col_p2, col_p3 = st.columns(3)
+    with col_p1:
+        st.markdown(f"""
+        <div class="metric-card" style="border-left: 4px solid #3b82f6;">
+            <div style="color: #93c5fd; font-size: 0.85rem; font-weight: 600;">⬅️ CLASSIFICADAS À ESQUERDA (BAIXAS)</div>
+            <div style="color: #60a5fa; font-size: 1.8rem; font-weight: bold;">{caixas_esq} <span style="font-size: 1rem; color: #9ca3af;">caixas</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_p2:
+        st.markdown(f"""
+        <div class="metric-card" style="border-left: 4px solid #a855f7;">
+            <div style="color: #d8b4fe; font-size: 0.85rem; font-weight: 600;">➡️ CLASSIFICADAS À DIREITA (ALTAS)</div>
+            <div style="color: #c084fc; font-size: 1.8rem; font-weight: bold;">{caixas_dir} <span style="font-size: 1rem; color: #9ca3af;">caixas</span></div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_p3:
+        st.markdown(f"""
+        <div class="metric-card" style="border-left: 4px solid #10b981;">
+            <div style="color: #6ee7b7; font-size: 0.85rem; font-weight: 600;">📦 TOTAL GERAL CLASSIFICADO</div>
+            <div style="color: #34d399; font-size: 1.8rem; font-weight: bold;">{caixas_tot} <span style="font-size: 1rem; color: #9ca3af;">caixas</span></div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -284,7 +331,7 @@ def render_live_dashboard():
             st.markdown(f"- **Transferência Direita (transferRight):** <span class='{cls_tright}'>{txt_tright}</span>", unsafe_allow_html=True)
 
         with col_s3:
-            st.markdown("### 🏁 Esteiras de Saída")
+            st.markdown("### 🏁 Esteiras de Saída & Produção")
             cls_cleft = "sensor-on" if tags.get("conveyorLeft") else "sensor-off"
             txt_cleft = "RODANDO ▶" if tags.get("conveyorLeft") else "PARADA"
             st.markdown(f"- **Saída Esquerda (conveyorLeft):** <span class='{cls_cleft}'>{txt_cleft}</span>", unsafe_allow_html=True)
@@ -293,7 +340,10 @@ def render_live_dashboard():
             txt_cright = "RODANDO ▶" if tags.get("conveyorRight") else "PARADA"
             st.markdown(f"- **Saída Direita (conveyorRight):** <span class='{cls_cright}'>{txt_cright}</span>", unsafe_allow_html=True)
 
-            st.markdown(f"- **Contador de Peças:** `{tags.get('contador', 0)} caixas`")
+            st.markdown("---")
+            st.markdown(f"- ⬅️ **Caixas Baixas (Esquerda):** `{caixas_esq}`")
+            st.markdown(f"- ➡️ **Caixas Altas (Direita):** `{caixas_dir}`")
+            st.markdown(f"- 📦 **Total Classificadas:** `{caixas_tot}` *(CLP: {tags.get('contador', 0)})*")
 
     # -------------------------------------------------------------------------
     # TAB 2: REDE DE PETRI AO VIVO
@@ -303,43 +353,75 @@ def render_live_dashboard():
         st.caption("Os lugares com fichas ativas são iluminados em tempo real conforme as caixas se movem.")
 
         active_places = petri.get("active_places", [])
+        estados_dict = petri.get("petri_estados", {})
 
         places_info = {
             "p1": {"name": "p1 (Repouso)", "x": 0, "y": 2},
-            "p2": {"name": "p2 (Entrada)", "x": 2, "y": 2},
-            "p3": {"name": "p3 (Leitura Altura)", "x": 4, "y": 2},
-            "p4": {"name": "p4 (Mesa Transfer)", "x": 6, "y": 2},
-            "p5": {"name": "p5 (Caixa Alta)", "x": 5, "y": 3.5},
-            "p6": {"name": "p6 (Caixa Baixa)", "x": 5, "y": 0.5},
-            "p7": {"name": "p7 (Desvio Esq.)", "x": 8, "y": 3.5},
-            "p8": {"name": "p8 (Desvio Dir.)", "x": 8, "y": 0.5},
-            "p9": {"name": "p9 (Saída Alta)", "x": 10, "y": 3.5},
-            "p10": {"name": "p10 (Saída Baixa)", "x": 10, "y": 0.5},
+            "p2": {"name": "p2 (Entrada)", "x": 2.5, "y": 2},
+            "p3": {"name": "p3 (Presença)", "x": 5, "y": 2},
+            "p4": {"name": "p4 (Em Trânsito)", "x": 7.5, "y": 2},
+            "p5": {"name": "p5 (Mesa Transfer)", "x": 10, "y": 2},
+            "p6": {"name": "p6 (Caixa Baixa)", "x": 12, "y": 3.3},
+            "p7": {"name": "p7 (Desvio Esq.)", "x": 14.5, "y": 3.3},
+            "p8": {"name": "p8 (Caixa Alta)", "x": 12, "y": 0.7},
+            "p9": {"name": "p9 (Desvio Dir.)", "x": 14.5, "y": 0.7},
+            "p10": {"name": "p10 (Fim de Linha)", "x": 17, "y": 2},
+            "p11": {"name": "p11 (Operação)", "x": 2.5, "y": 0.5},
+            "p16": {"name": "p16 (Mesa Livre)", "x": 7.5, "y": 0.5},
         }
 
         fig = go.Figure()
 
+        # Arcos da Rede de Petri conectando os estados do processo
+        edges = [
+            ("p1", "p2"), ("p2", "p3"), ("p3", "p4"), ("p4", "p5"),
+            ("p5", "p6"), ("p6", "p7"), ("p7", "p10"),
+            ("p5", "p8"), ("p8", "p9"), ("p9", "p10"),
+            ("p1", "p11"), ("p16", "p4"), ("p6", "p16"), ("p8", "p16")
+        ]
+
+        for src, dst in edges:
+            if src in places_info and dst in places_info:
+                fig.add_trace(go.Scatter(
+                    x=[places_info[src]["x"], places_info[dst]["x"]],
+                    y=[places_info[src]["y"], places_info[dst]["y"]],
+                    mode="lines",
+                    line=dict(width=1.5, color="#4b5563", dash="dot" if "p16" in (src, dst) else "solid"),
+                    hoverinfo="none",
+                    showlegend=False
+                ))
+
         for p_id, info in places_info.items():
-            is_active = p_id in active_places
+            fichas = estados_dict.get(p_id, 1 if p_id in active_places else 0)
+            is_active = fichas > 0
+            label = f"{info['name']}<br><b>● {fichas}</b>" if is_active else info["name"]
+
+            node_color = "#10b981" if is_active else "#374151"
+            border_color = "#6ee7b7" if is_active else "#1f2937"
+            if health == "CRITICAL_FAULT" and is_active:
+                node_color = "#ef4444"
+                border_color = "#fca5a5"
+
             fig.add_trace(go.Scatter(
                 x=[info["x"]],
                 y=[info["y"]],
                 mode="markers+text",
                 name=info["name"],
-                text=[info["name"]],
+                text=[label],
                 textposition="top center",
                 marker=dict(
-                    size=35 if is_active else 25,
-                    color="#10b981" if is_active else "#374151",
-                    line=dict(width=3, color="#6ee7b7" if is_active else "#1f2937")
+                    size=38 if is_active else 24,
+                    color=node_color,
+                    line=dict(width=3, color=border_color)
                 ),
-                hoverinfo="text"
+                hoverinfo="text",
+                showlegend=False
             ))
 
         fig.update_layout(
             showlegend=False,
-            height=380,
-            margin=dict(l=20, r=20, t=30, b=20),
+            height=400,
+            margin=dict(l=20, r=20, t=40, b=20),
             plot_bgcolor="#111827",
             paper_bgcolor="#111827",
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),

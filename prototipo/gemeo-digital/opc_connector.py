@@ -26,9 +26,11 @@ class SubscriptionHandler:
 
     def datachange_notification(self, node: Node, val: Any, data: Any):
         try:
-            # Extrai o nome da tag do BrowseName ou NodeId
-            node_str = str(node.nodeid.Identifier)
-            tag_name = node_str.split(".")[-1]
+            # Extrai o nome da tag do cache ou do NodeId
+            tag_name = self.connector._node_id_to_name.get(str(node.nodeid))
+            if not tag_name:
+                node_str = str(node.nodeid.Identifier)
+                tag_name = node_str.split(".")[-1]
 
             # Processa no conector do gêmeo digital
             self.connector.process_incoming_tag(tag_name, val)
@@ -52,6 +54,8 @@ class DigitalTwinConnector:
         self._subscription = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._nodes_cache: Dict[str, Node] = {}
+        self._node_id_to_name: Dict[str, str] = {}
+        self._monitor_task: Optional[asyncio.Task] = None
         self.on_state_change_callbacks: List[Callable[[Dict[str, Any]], None]] = []
 
     def register_callback(self, callback: Callable[[Dict[str, Any]], None]):
@@ -102,14 +106,21 @@ class DigitalTwinConnector:
         children = await plc_node.get_children()
 
         tags_to_subscribe = []
+        initial_baseline = {}
         for child in children:
             nclass = await child.read_node_class()
             if nclass == ua.NodeClass.Variable:
                 bname = await child.read_browse_name()
                 self._nodes_cache[bname.Name] = child
+                self._node_id_to_name[str(child.nodeid)] = bname.Name
                 tags_to_subscribe.append(child)
+                try:
+                    initial_baseline[bname.Name] = await child.read_value()
+                except Exception:
+                    pass
 
-        logger.info(f"Cache criado com {len(self._nodes_cache)} variáveis.")
+        self.petri_engine.set_baseline_tags(initial_baseline)
+        logger.info(f"Cache criado com {len(self._nodes_cache)} variáveis (baseline inicial carregado).")
 
         # Cria a subscrição
         handler = SubscriptionHandler(self)
@@ -117,9 +128,26 @@ class DigitalTwinConnector:
         await self._subscription.subscribe_data_change(tags_to_subscribe)
         logger.info(f"Subscrição ativada para {len(tags_to_subscribe)} tags.")
 
+        # Inicia loop de monitoramento contínuo em segundo plano para detecção em tempo real de timeouts
+        self._monitor_task = asyncio.create_task(self._periodic_monitor_loop())
+
         # Auto-Higienização e Inicialização Segura do CLP
         logger.info("🔧 Executando auto-higienização da Rede de Petri no CLP...")
         await self.auto_initialize_plc()
+
+    async def _periodic_monitor_loop(self):
+        """Loop contínuo de segundo plano para monitorar timeouts e sensores travados (Stuck ON/OFF)."""
+        while self.is_connected:
+            try:
+                anomaly = self.petri_engine.check_anomalies()
+                if anomaly and anomaly.severity == "CRITICAL" and anomaly.is_active:
+                    # Se ainda não desligou, dispara emergency_stop autônomo
+                    if not self.petri_engine.tags.get("desligar") and not self.petri_engine.tags.get("stop"):
+                        logger.warning(f"🚨 [MONITOR PERIÓDICO] Falha crítica detectada: {anomaly.message}")
+                        await self.emergency_stop(reason=anomaly.message)
+            except Exception as e:
+                logger.error(f"Erro no loop periódico de monitoramento: {e}")
+            await asyncio.sleep(0.25)
 
     async def auto_initialize_plc(self):
         """Garante que o CLP inicialize em estado limpo e pronto para rodar sem travas residuais."""
@@ -144,12 +172,10 @@ class DigitalTwinConnector:
 
             for p in ["p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
                 await self.write_tag(p, False)
-            for tag in ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]:
-                await self.write_tag(tag, False)
             await self.write_tag("p1", True)
             await self.write_tag("p14", True)
             await self.write_tag("p16", True)
-            self.petri_engine.clear_anomalies()
+            self.petri_engine.reset()
             logger.info("✅ CLP auto-inicializado com sucesso em estado de prontidão (p1=True).")
         except Exception as e:
             logger.warning(f"Aviso na auto-inicialização do CLP: {e}")
@@ -196,7 +222,7 @@ class DigitalTwinConnector:
     async def reset_plant(self):
         """Envia o comando de reset para restabelecer a operação normal e a marcação inicial de Petri."""
         logger.info("🔄 [RESET] Enviando comando de reset e restaurando marcação inicial no CLP...")
-        self.petri_engine.clear_anomalies()
+        self.petri_engine.reset()
         
         # 1. Configura a meta do contador CTU
         try:
@@ -222,8 +248,6 @@ class DigitalTwinConnector:
         # 4. Restaura a marcação inicial da Rede de Petri (p1, p14, p16 ativos) e limpa sinais residuais
         for p in ["p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
             await self.write_tag(p, False)
-        for tag in ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]:
-            await self.write_tag(tag, False)
         await self.write_tag("p1", True)
         await self.write_tag("p14", True)
         await self.write_tag("p16", True)
@@ -244,8 +268,6 @@ class DigitalTwinConnector:
         await self.write_tag("stop", False)
         for p in ["p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
             await self.write_tag(p, False)
-        for tag in ["atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]:
-            await self.write_tag(tag, False)
         await self.write_tag("p1", False)
         await self.write_tag("p2", True)
         await self.write_tag("p14", True)
@@ -283,6 +305,8 @@ class DigitalTwinConnector:
 
     async def disconnect(self):
         """Encerra a conexão limpa com o servidor."""
+        if self._monitor_task:
+            self._monitor_task.cancel()
         if self.client:
             try:
                 await self.client.disconnect()

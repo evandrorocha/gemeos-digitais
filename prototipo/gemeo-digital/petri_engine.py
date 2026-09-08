@@ -1,14 +1,122 @@
 """
-Motor de Diagnóstico baseado em Rede de Petri
-Executa o modelo formal da esteira de separação de caixas (Sorting by Height),
-rastreia a marcação dos lugares (p1..p16) e detecta anomalias em tempo real
-(Stuck ON, Stuck OFF, Violação de Sequência e Timeouts de Transporte).
+Motor de Diagnóstico baseado em Rede de Petri do Gêmeo Digital
+Integra o modelo formal da Rede de Petri (backend/redeDePetri.py) com detecção em tempo real
+de falhas de sensores físicos do Factory I/O (Stuck ON, Stuck OFF, Violação de Sequência e Timeouts).
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
+import os
+from pathlib import Path
+import sys
 import time
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Any
+
+# Importação da classe formal RedePetri criada no backend
+BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.append(str(BACKEND_DIR))
+
+try:
+    from redeDePetri import RedePetri
+except ImportError:
+    RedePetri = None
+
+if RedePetri is None:
+    class RedePetri:
+        """Implementação formal de contingência caso backend/redeDePetri.py não esteja acessível."""
+        def __init__(self, estados=None, lugares2transicoes=None, transicoes2lugares=None, eventos=None, variaveis=None, condicoes=None):
+            self.estados = estados if estados is not None else {}
+            self.lugares2transicoes = lugares2transicoes if lugares2transicoes is not None else {}
+            self.transicoes2lugares = transicoes2lugares if transicoes2lugares is not None else {}
+            self.eventos = eventos if eventos is not None else {}
+            self.variaveis = variaveis if variaveis is not None else {}
+            self.condicoes = condicoes if condicoes is not None else {}
+
+        def adicionar_estado(self, lugar, fichas=0):
+            self.estados[lugar] = fichas
+
+        def adicionar_transicao(self, lugar_origem, transicao, lugares_destino):
+            if lugar_origem not in self.lugares2transicoes:
+                self.lugares2transicoes[lugar_origem] = []
+            if transicao not in self.lugares2transicoes[lugar_origem]:
+                self.lugares2transicoes[lugar_origem].append(transicao)
+            self.transicoes2lugares[transicao] = lugares_destino
+
+        def adicionar_evento(self, evento, transicoes):
+            self.eventos[evento] = transicoes
+
+        def adicionar_variavel(self, nome, valor=0):
+            self.variaveis[nome] = valor
+
+        def atualizar_variavel(self, nome, valor):
+            self.variaveis[nome] = valor
+
+        def transicao_pode_disparar(self, transicao):
+            if transicao in self.condicoes:
+                variavel, valor_esperado = self.condicoes[transicao]
+                if self.variaveis.get(variavel) != valor_esperado:
+                    return False
+            return True
+
+        def transicoes_disponiveis(self):
+            entradas = {}
+            for lugar, transicoes in self.lugares2transicoes.items():
+                for transicao in transicoes:
+                    if transicao not in entradas:
+                        entradas[transicao] = []
+                    entradas[transicao].append(lugar)
+
+            disponiveis = {}
+            for transicao, lugares in entradas.items():
+                fichas_disponiveis = all(self.estados.get(lugar, 0) > 0 for lugar in lugares)
+                if not fichas_disponiveis:
+                    continue
+                if not self.transicao_pode_disparar(transicao):
+                    continue
+                disponiveis[transicao] = lugares
+            return disponiveis
+
+        def processar_evento(self, evento):
+            if evento not in self.eventos:
+                return False, f"Falha: evento '{evento}' nao esta cadastrado."
+
+            transicoes_evento = self.eventos[evento]
+            disponiveis = self.transicoes_disponiveis()
+            transicoes_escolhidas = [t for t in transicoes_evento if t in disponiveis]
+
+            if not transicoes_escolhidas:
+                return False, f"Falha: nenhuma transicao associada ao evento '{evento}' esta habilitada."
+
+            for transicao in transicoes_escolhidas:
+                for lugar in disponiveis[transicao]:
+                    self.estados[lugar] -= 1
+                for lugar in self.transicoes2lugares[transicao]:
+                    if lugar in self.estados:
+                        self.estados[lugar] += 1
+
+            while True:
+                disponiveis = self.transicoes_disponiveis()
+                transicao_lambda = None
+                lugares_origem = None
+                for transicao, lugares in disponiveis.items():
+                    if not any(transicao in transicoes for transicoes in self.eventos.values()):
+                        transicao_lambda = transicao
+                        lugares_origem = lugares
+                        break
+                if transicao_lambda is None:
+                    break
+                for lugar in lugares_origem:
+                    self.estados[lugar] -= 1
+                for lugar in self.transicoes2lugares[transicao_lambda]:
+                    if lugar in self.estados:
+                        self.estados[lugar] += 1
+
+            return True, f"Evento '{evento}' processado com sucesso."
+
+        def mostrar_estados(self):
+            print("Estados:", {k: v for k, v in self.estados.items() if v > 0})
+
 from config import (
     TIMEOUT_CONVEYOR_ENTRY_SEC,
     TIMEOUT_TRANSFER_SEC,
@@ -19,7 +127,7 @@ from data_sanitizer import SanitizedEvent
 
 @dataclass
 class AnomalyReport:
-    """Relatório estruturado de anomalia detectada pelo Gêmeo Digital."""
+    """Relatório estruturado de anomalia detectada pelo Gêmeo Digital (ISO/IEC 30173)."""
     anomaly_id: str
     anomaly_type: str
     severity: str  # "CRITICAL", "WARNING", "INFO"
@@ -35,25 +143,106 @@ class AnomalyReport:
         return asdict(self)
 
 
+def create_initial_petri_net() -> RedePetri:
+    """
+    Constrói a instância formal da Rede de Petri do processo Sorting by Height,
+    utilizando exatamente a topologia e transições definidas na arquitetura.
+    """
+
+    # Lugares (marcação inicial: p1 = 1 para repouso, p16 = 1 para mesa livre)
+    lugares = {
+        "p1": 1, "p2": 0, "p3": 0, "p4": 0,
+        "p5": 0, "p6": 0, "p7": 0, "p8": 0,
+        "p9": 0, "p10": 0, "p11": 0, "p12": 0,
+        "p13": 0, "p16": 1
+    }
+
+    # Transições de saída de cada lugar
+    lugares2transicoes = {
+        "p1": ["t1"],
+        "p2": ["t2"],
+        "p3": ["t3"],
+        "p4": ["t4"],
+        "p5": ["t5", "t8"],
+        "p6": ["t6"],
+        "p7": ["t7"],
+        "p8": ["t9"],
+        "p9": ["t10"],
+        "p10": ["t11"],
+        "p11": ["t12", "t14"],
+        "p12": ["t13"],
+        "p13": ["t15"],
+        "p16": ["t3"]
+    }
+
+    # Lugares de destino de cada transição
+    transicoes2lugares = {
+        "t1": ["p2", "p11"],
+        "t2": ["p3"],
+        "t3": ["p2", "p4"],
+        "t4": ["p5"],
+        "t5": ["p6"],
+        "t6": ["p7", "p16"],
+        "t7": ["p10"],
+        "t8": ["p8"],
+        "t9": ["p9", "p16"],
+        "t10": ["p10"],
+        "t11": ["empty"],
+        "t12": ["p12"],
+        "t13": ["p1"],
+        "t14": ["p13"],
+        "t15": ["p1"]
+    }
+
+    # Associação entre eventos de chão de fábrica e transições
+    eventos = {
+        "start_P": ["t1"],
+        "palletSensor_P": ["t2"],
+        "loaded_P": ["t4"],
+        "atLeftEntry_P": ["t6"],
+        "atLeftExit_P": ["t7"],
+        "atRightEntry_P": ["t9"],
+        "atRightExit_P": ["t10"],
+        "stop_P": ["t12"],
+        "reset_P": ["t14"]
+    }
+
+    # Variáveis internas e condições de guarda
+    variaveis = {"alto": 0}
+    condicoes = {
+        "t5": ("alto", 0),
+        "t8": ("alto", 1)
+    }
+
+    return RedePetri(
+        estados=lugares,
+        lugares2transicoes=lugares2transicoes,
+        transicoes2lugares=transicoes2lugares,
+        eventos=eventos,
+        variaveis=variaveis,
+        condicoes=condicoes
+    )
+
+
 class PetriNetEngine:
     """
-    Motor da Rede de Petri do Gêmeo Digital:
-    - Mantém a marcação dos lugares ativos (p1 a p16).
-    - Avalia transições disparadas por eventos sanitizados.
-    - Executa regras de diagnóstico e detecção de anomalias.
+    Motor de Diagnóstico Industrial do Gêmeo Digital:
+    - Executa o motor formal da Rede de Petri (RedePetri) a partir dos eventos sanitizados do CLP.
+    - Diagnostica violações de sequência causadas por sensores que falharam ou foram pulados.
+    - Monitora temporizações contínuas de transporte e tempos máximos de presença (Stuck ON/OFF).
+    - Reporta anomalias estruturadas em tempo real e orquestra a parada autônoma de segurança.
     """
 
+    MONITORED_SENSORS = [
+        "palletSensor", "highSensor", "loaded",
+        "atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"
+    ]
+
     def __init__(self):
-        # Lugares ativos (Marcação inicial: p1 = True)
-        self.places: Dict[str, bool] = {f"p{i}": False for i in range(1, 17)}
-        self.places["p1"] = True  # Estado inicial: Repouso
-        self.places["p14"] = True # Condição de inicialização do Ladder
-        self.places["p16"] = True
+        # Núcleo formal da Rede de Petri
+        self.petri_net = create_initial_petri_net()
 
-        # Transições ativas
-        self.transitions: Dict[str, bool] = {f"t{i}": False for i in range(1, 18)}
-
-        # Variáveis de processo espelhadas no Gêmeo Digital
+        # Último estado das tags de processo conhecidas
         self.tags: Dict[str, Any] = {
             "start": False, "stop": False, "reset": False, "desligar": False,
             "palletSensor": False, "highSensor": False, "loaded": False, "alto": False,
@@ -63,124 +252,421 @@ class PetriNetEngine:
             "contador": 0
         }
 
-        # Timers para detecção de anomalias
-        self._conveyor_entry_start_time: Optional[float] = None
-        self._pallet_sensor_start_time: Optional[float] = None
+        # Histórico de valor anterior para detecção precisa de bordas (_P / _N)
+        self._prev_tags: Dict[str, Any] = {}
+
+        # Temporizadores de presença e transporte
+        self._sensor_high_start_time: Dict[str, Optional[float]] = {}
         self._box_in_transit_start_time: Optional[float] = None
-        self._transfer_start_time: Optional[float] = None
-        self._high_sensor_triggered_for_current_pallet = False
+        self._transfer_left_start_time: Optional[float] = None
+        self._transfer_right_start_time: Optional[float] = None
+        self._exit_left_start_time: Optional[float] = None
+        self._exit_right_start_time: Optional[float] = None
+
+        # Contadores de classificação de produção
+        self.caixas_esquerda: int = 0
+        self.caixas_direita: int = 0
+        self.total_historico_esquerda: int = 0
+        self.total_historico_direita: int = 0
+        self._last_direction: str = "esquerda"
+        self._last_plc_counter: int = 0
 
         # Histórico de anomalias
         self.active_anomalies: List[AnomalyReport] = []
         self.anomaly_history: List[AnomalyReport] = []
 
+    def set_baseline_tags(self, baseline: Dict[str, Any]):
+        """Inicializa o estado e histórico com a leitura inicial do CLP sem disparar falsas bordas."""
+        for k, v in baseline.items():
+            self.tags[k] = v
+            self._prev_tags[k] = v
+            if k == "contador" and isinstance(v, (int, float)):
+                self._last_plc_counter = int(v)
+
     def update_from_sanitized_event(self, event: SanitizedEvent) -> Optional[AnomalyReport]:
         """
-        Processa um evento sanitizado do OPC UA, atualiza a Rede de Petri
-        e executa a checagem de regras de anomalia.
+        Processa um evento industrial sanitizado do OPC UA, atualiza a Rede de Petri,
+        detecta bordas de subida/descida e executa a verificação de anomalias.
         """
         tag = event.tag_name
         val = event.value
+        old_val = self._prev_tags.get(tag, None)
 
-        # Atualiza a tag espelhada
+        # Atualiza o estado atual da tag
         self.tags[tag] = val
-
-        # Se a tag for um lugar (p1..p16) ou transição (t1..t17) reportado pelo CLP:
-        if tag in self.places:
-            self.places[tag] = bool(val)
-        elif tag in self.transitions:
-            self.transitions[tag] = bool(val)
-
-        # Atualiza temporizadores internos
         now = time.time()
-        if tag == "conveyorEntry":
-            if val:
-                self._conveyor_entry_start_time = now
+
+        # Detecção de borda (Rising Edge: _P, Falling Edge: _N)
+        edge_event = None
+        if isinstance(val, bool):
+            if val is True and (old_val is False or old_val is None):
+                # Tags industriais normalmente fechadas (NC: 1 = livre/seguro) não geram borda de subida ao conectar em repouso (p1)
+                is_nc_tag = tag in ["stop", "atLeftEntry", "atLeftExit", "atRightEntry", "atRightExit"]
+                if old_val is None and is_nc_tag and self.petri_net.estados.get("p1", 0) > 0:
+                    pass
+                else:
+                    edge_event = f"{tag}_P"
+                    self._sensor_high_start_time[tag] = now
+            elif val is False and old_val is True:
+                edge_event = f"{tag}_N"
+                self._sensor_high_start_time[tag] = None
+        elif isinstance(val, (int, float)):
+            # Tags numéricas (ex: contador do CLP)
+            if old_val is not None and val != old_val:
+                edge_event = f"{tag}_{val}"
+
+        self._prev_tags[tag] = val
+
+        # Atualização da variável interna 'alto' quando o CLP reporta a classificação
+        if edge_event == "alto_P":
+            self.petri_net.atualizar_variavel("alto", 1)
+        elif edge_event == "alto_N":
+            self.petri_net.atualizar_variavel("alto", 0)
+
+        # Se o operador apertar o botão físico RESET no Factory I/O:
+        if edge_event == "reset_P":
+            self.reset()
+            return None
+
+        # ---------------------------------------------------------------------
+        # AUTO-RECUPERAÇÃO: Remove anomalias ativas quando a condição física normaliza
+        # ---------------------------------------------------------------------
+        # 1. Se o sensor travado em nível alto (Stuck ON) voltou para False (_N):
+        if edge_event and edge_event.endswith("_N"):
+            sensor_name = edge_event[:-2]
+            self.auto_clear_anomaly_for_component(sensor_name, anomaly_type="SENSOR_STUCK_ON")
+
+        # 2. Se a inconsistência óptica de altura foi corrigida (feixe liberado ou presença restabelecida):
+        if not self.tags.get("highSensor") or self.tags.get("palletSensor"):
+            self.auto_clear_anomaly_for_component("highSensor", anomaly_type="SENSOR_STUCK_ON")
+
+        # 3. Se um sensor que estava com Stuck OFF ou Timeout voltou a emitir pulso (_P):
+        if edge_event and edge_event.endswith("_P"):
+            sensor_name = edge_event[:-2]
+            self.auto_clear_anomaly_for_component(sensor_name, anomaly_type="SENSOR_STUCK_OFF")
+            self.auto_clear_anomaly_for_component(sensor_name, anomaly_type="TRANSPORT_TIMEOUT")
+
+        # 4. Ao iniciar novo ciclo (start_P), limpa anomalias de transição ilegal antigas
+        if edge_event == "start_P":
+            self.auto_clear_anomaly_for_component("", anomaly_type="ILLEGAL_TRANSITION")
+
+        # Rastreamento da rota de classificação ativa (Esquerda = Baixa, Direita = Alta)
+        if edge_event == "transferLeft_P" or (tag == "transferLeft" and val):
+            self._last_direction = "esquerda"
+        elif edge_event == "transferRight_P" or (tag == "transferRight" and val):
+            self._last_direction = "direita"
+        elif edge_event == "loaded_P":
+            if self.tags.get("alto") or self.tags.get("highSensor") or self.petri_net.variaveis.get("alto") == 1:
+                self._last_direction = "direita"
             else:
-                self._conveyor_entry_start_time = None
-                self._box_in_transit_start_time = None
+                self._last_direction = "esquerda"
 
-        if tag == "palletSensor":
-            if val:
-                self._pallet_sensor_start_time = now
-                self._box_in_transit_start_time = now  # Inicia rastreio da caixa em trânsito
-                self._high_sensor_triggered_for_current_pallet = False
-            else:
-                self._pallet_sensor_start_time = None
+        # Atualização dos rastreadores de movimento físico e contadores de produção
+        if edge_event == "palletSensor_P":
+            self._box_in_transit_start_time = now
+        elif edge_event == "loaded_P":
+            self._box_in_transit_start_time = None
+        elif edge_event == "atLeftEntry_P":
+            self._exit_left_start_time = now
+        elif edge_event == "atLeftExit_P":
+            self.caixas_esquerda += 1
+            self.total_historico_esquerda += 1
+            self._exit_left_start_time = None
+        elif edge_event == "atRightEntry_P":
+            self._exit_right_start_time = now
+        elif edge_event == "atRightExit_P":
+            self.caixas_direita += 1
+            self.total_historico_direita += 1
+            self._exit_right_start_time = None
 
-        if tag == "highSensor" and val:
-            self._high_sensor_triggered_for_current_pallet = True
+        # Sincronização direta com o contador de peças físico do CLP
+        if tag == "contador" and isinstance(val, (int, float)):
+            val_int = int(val)
+            if old_val is not None:
+                old_int = int(old_val)
+                if val_int > old_int:
+                    delta = val_int - old_int
+                    twin_total = self.caixas_esquerda + self.caixas_direita
+                    if twin_total < val_int:
+                        missing = min(delta, val_int - twin_total)
+                        if self._last_direction == "direita":
+                            self.caixas_direita += missing
+                            self.total_historico_direita += missing
+                        else:
+                            self.caixas_esquerda += missing
+                            self.total_historico_esquerda += missing
+            self._last_plc_counter = val_int
 
-        if tag == "loaded" and val:
-            # Caixa chegou com sucesso na mesa transfer!
+        if tag == "transferLeft":
+            self._transfer_left_start_time = now if val else None
+        elif tag == "transferRight":
+            self._transfer_right_start_time = now if val else None
+        elif tag == "conveyorEntry" and not val:
             self._box_in_transit_start_time = None
 
-        if tag in ["transferLeft", "transferRight"]:
-            if val:
-                self._transfer_start_time = now
-            else:
-                self._transfer_start_time = None
+        # Disparo da transição formal na Rede de Petri caso o evento pertença ao modelo
+        if edge_event and edge_event in self.petri_net.eventos:
+            sucesso, msg = self.petri_net.processar_evento(edge_event)
+            if not sucesso:
+                # Transição não permitida: O evento ocorreu fora da ordem esperada da planta!
+                anomaly = self._diagnose_sequence_violation(edge_event, msg)
+                return self._register_anomaly(anomaly)
 
-        # Executa a verificação de anomalias
+        # Executa a checagem contínua de anomalias (timeouts e stuck)
         return self.check_anomalies()
 
-    def check_anomalies(self) -> Optional[AnomalyReport]:
+    def auto_clear_anomaly_for_component(self, component_name: str, anomaly_type: Optional[str] = None):
         """
-        Aplica as regras formais de detecção de anomalias.
-        Retorna o relatório da anomalia se alguma for disparada.
+        Desativa automaticamente as anomalias ativas quando o sensor correspondente
+        volta a responder dentro dos parâmetros normais de operação.
+        """
+        remaining = []
+        cleared_any = False
+        for anom in self.active_anomalies:
+            match_comp = (not component_name) or (component_name.lower() in anom.component.lower())
+            match_type = (anomaly_type is None) or (anom.anomaly_type == anomaly_type)
+            if match_comp and match_type and anom.is_active:
+                anom.is_active = False
+                cleared_any = True
+            else:
+                remaining.append(anom)
+        self.active_anomalies = remaining
+        if cleared_any and component_name in self._sensor_high_start_time:
+            self._sensor_high_start_time[component_name] = None
+
+    def _diagnose_sequence_violation(self, edge_event: str, error_msg: str) -> AnomalyReport:
+        """
+        Interpreta uma falha matemática de disparo de transição e diagnostica
+        a causa-raiz física no Factory I/O (qual sensor falhou ou foi pulado).
         """
         now = time.time()
         now_iso = datetime.now(timezone.utc).isoformat()
-        current_active_places = [p for p, active in self.places.items() if active]
+        current_active = [p for p, fichas in self.petri_net.estados.items() if fichas > 0]
+
+        # Caso 1: Sensor loaded acionou sem passar pelo palletSensor (Stuck OFF na entrada)
+        if edge_event == "loaded_P" and self.petri_net.estados.get("p2", 0) > 0:
+            return AnomalyReport(
+                anomaly_id=f"ANOM_SEQ_PALLET_{int(now)}",
+                anomaly_type="SENSOR_STUCK_OFF",
+                severity="CRITICAL",
+                component="palletSensor (Sensor de Presença na Entrada)",
+                message="Violação de Sequência: Peça atingiu a mesa transfer (loaded_P) sem ser detectada pelo sensor de entrada. Sensor 'palletSensor' falhou (Stuck OFF / Aberto)!",
+                timestamp_iso=now_iso,
+                timestamp_unix=now,
+                current_marking=current_active,
+                suggested_action="Inspecione o sensor óptico 'palletSensor' no Factory I/O (remova a falha Fail OFF ou desobstrua a lente)."
+            )
+
+        # Caso 2: Sensor de saída atLeftExit acionou sem passar por atLeftEntry (Stuck OFF no desvio esquerdo)
+        if edge_event == "atLeftExit_P" and self.petri_net.estados.get("p6", 0) > 0:
+            return AnomalyReport(
+                anomaly_id=f"ANOM_SEQ_ATLEFT_{int(now)}",
+                anomaly_type="SENSOR_STUCK_OFF",
+                severity="CRITICAL",
+                component="atLeftEntry (Sensor Entrada Saída Esquerda)",
+                message="Violação de Sequência: Peça atingiu o fim da linha esquerda sem ser detectada na entrada do desvio. Sensor 'atLeftEntry' falhou (Stuck OFF)!",
+                timestamp_iso=now_iso,
+                timestamp_unix=now,
+                current_marking=current_active,
+                suggested_action="Inspecione o sensor 'atLeftEntry' no Factory I/O (remova a falha Fail OFF)."
+            )
+
+        # Caso 3: Sensor de saída atRightExit acionou sem passar por atRightEntry (Stuck OFF no desvio direito)
+        if edge_event == "atRightExit_P" and self.petri_net.estados.get("p8", 0) > 0:
+            return AnomalyReport(
+                anomaly_id=f"ANOM_SEQ_ATRIGHT_{int(now)}",
+                anomaly_type="SENSOR_STUCK_OFF",
+                severity="CRITICAL",
+                component="atRightEntry (Sensor Entrada Saída Direita)",
+                message="Violação de Sequência: Peça atingiu o fim da linha direita sem ser detectada na entrada do desvio. Sensor 'atRightEntry' falhou (Stuck OFF)!",
+                timestamp_iso=now_iso,
+                timestamp_unix=now,
+                current_marking=current_active,
+                suggested_action="Inspecione o sensor 'atRightEntry' no Factory I/O (remova a falha Fail OFF)."
+            )
+
+        # Caso 4: Qualquer sensor acionando com a planta parada (Repouso em p1)
+        if self.petri_net.estados.get("p1", 0) > 0 and edge_event not in ["start_P", "reset_P"]:
+            comp_name = edge_event.replace("_P", "").replace("_N", "")
+            return AnomalyReport(
+                anomaly_id=f"ANOM_SPURIOUS_{comp_name}_{int(now)}",
+                anomaly_type="ILLEGAL_TRANSITION",
+                severity="CRITICAL",
+                component=f"{comp_name} (Sensor)",
+                message=f"Disparo Espúrio: Sensor '{comp_name}' acionado com a planta em repouso (Estado p1). Sensor travado em curto ou acionamento indevido!",
+                timestamp_iso=now_iso,
+                timestamp_unix=now,
+                current_marking=current_active,
+                suggested_action=f"Verifique se o sensor '{comp_name}' está em curto ou com falha Fail ON no Factory I/O."
+            )
+
+        # Caso genérico de violação formal
+        comp_name = edge_event.replace("_P", "").replace("_N", "")
+        return AnomalyReport(
+            anomaly_id=f"ANOM_ILLEGAL_TRANS_{int(now)}",
+            anomaly_type="ILLEGAL_TRANSITION",
+            severity="CRITICAL",
+            component=comp_name,
+            message=f"Violação Formal de Estados: O evento '{edge_event}' não possui transição habilitada na marcação atual. {error_msg}",
+            timestamp_iso=now_iso,
+            timestamp_unix=now,
+            current_marking=current_active,
+            suggested_action="Verifique o alinhamento da planta, sensores e ordem de despacho das caixas."
+        )
+
+    def check_anomalies(self) -> Optional[AnomalyReport]:
+        """
+        Aplica regras contínuas de tempo real (sensores travados e timeouts de transporte).
+        Pode ser invocado periodicamente mesmo quando nenhum evento novo chega do CLP.
+        """
+        now = time.time()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        current_active = [p for p, v in self.petri_net.estados.items() if v > 0]
 
         # ---------------------------------------------------------------------
-        # REGRA 1: Detecção de Sensor de Presença Travado (Stuck ON)
-        # Se o sensor de entrada ficar aceso por mais tempo do que a passagem da caixa
+        # REGRA 1: Inconsistência Óptica Física (highSensor ON sem palletSensor)
         # ---------------------------------------------------------------------
-        if self.tags.get("palletSensor") and self._pallet_sensor_start_time:
-            elapsed = now - self._pallet_sensor_start_time
-            if elapsed > MAX_PRESENCE_TIME_SEC and self.tags.get("conveyorEntry"):
+        # No Factory I/O, a cortina óptica de altura está acima do sensor de presença.
+        # Uma caixa não pode cortar o feixe superior sem cortar o feixe inferior.
+        if self.tags.get("highSensor") and not self.tags.get("palletSensor"):
+            anomaly = AnomalyReport(
+                anomaly_id=f"ANOM_OPTICAL_INCONSISTENCY_{int(now)}",
+                anomaly_type="SENSOR_STUCK_ON",
+                severity="CRITICAL",
+                component="highSensor (Sensor de Altura)",
+                message="Inconsistência Óptica: Sensor de topo (highSensor) acionado sem detecção no feixe inferior (palletSensor). Sensor de altura em falha Stuck ON!",
+                timestamp_iso=now_iso,
+                timestamp_unix=now,
+                current_marking=current_active,
+                suggested_action="Remova a falha Fail ON do sensor 'highSensor' no Factory I/O."
+            )
+            return self._register_anomaly(anomaly)
+
+        # ---------------------------------------------------------------------
+        # REGRA 2: Detecção de Sensor Travado em Nível Lógico Alto (Stuck ON)
+        # ---------------------------------------------------------------------
+        for sensor in self.MONITORED_SENSORS:
+            if self.tags.get(sensor):
+                start_time = self._sensor_high_start_time.get(sensor)
+                if start_time:
+                    elapsed = now - start_time
+                    # Se o sensor ficar ligado por mais tempo que o permitido:
+                    if elapsed > MAX_PRESENCE_TIME_SEC:
+                        anomaly = AnomalyReport(
+                            anomaly_id=f"ANOM_STUCK_ON_{sensor.upper()}_{int(now)}",
+                            anomaly_type="SENSOR_STUCK_ON",
+                            severity="CRITICAL",
+                            component=f"{sensor} (Sensor de Presença/Detecção)",
+                            message=f"Sensor '{sensor}' travado em nível alto por {elapsed:.1f}s (> {MAX_PRESENCE_TIME_SEC:.1f}s) com a planta em operação. Falha Stuck ON!",
+                            timestamp_iso=now_iso,
+                            timestamp_unix=now,
+                            current_marking=current_active,
+                            suggested_action=f"Inspecione o sensor '{sensor}' no Factory I/O (remova a falha Fail ON ou desobstrua o feixe óptico)."
+                        )
+                        return self._register_anomaly(anomaly)
+
+        # ---------------------------------------------------------------------
+        # REGRA 3: Timeout de Transporte na Entrada (Caixa não atinge 'loaded')
+        # ---------------------------------------------------------------------
+        if self._box_in_transit_start_time and self.tags.get("conveyorEntry"):
+            elapsed = now - self._box_in_transit_start_time
+            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not self.tags.get("loaded"):
                 anomaly = AnomalyReport(
-                    anomaly_id=f"ANOM_STUCK_ON_{int(now)}",
-                    anomaly_type="SENSOR_STUCK_ON",
+                    anomaly_id=f"ANOM_TIMEOUT_LOADED_{int(now)}",
+                    anomaly_type="TRANSPORT_TIMEOUT",
                     severity="CRITICAL",
-                    component="palletSensor (Sensor de Entrada)",
-                    message=f"Sensor de presença travado em ON por {elapsed:.1f}s com esteira em movimento. Risco de engavetamento!",
+                    component="loaded (Sensor da Mesa Transfer) / conveyorEntry",
+                    message=f"Tempo limite de transporte na esteira excedido ({elapsed:.1f}s > {TIMEOUT_CONVEYOR_ENTRY_SEC:.1f}s). Peça não atingiu a mesa transfer (Sensor 'loaded' em falha Stuck OFF ou esteira travada)!",
                     timestamp_iso=now_iso,
                     timestamp_unix=now,
-                    current_marking=current_active_places,
-                    suggested_action="Inspecionar lente óptica do sensor de entrada e desobstruir linha."
+                    current_marking=current_active,
+                    suggested_action="Verifique se o sensor 'loaded' está com falha Fail OFF no Factory I/O ou se o pallet travou nos roletes."
                 )
                 return self._register_anomaly(anomaly)
 
         # ---------------------------------------------------------------------
-        # REGRA 2: Detecção de Timeout de Transporte (Caixa Engavetada / Motor Travado)
-        # Só monitora se uma caixa de fato entrou na linha (passou pelo palletSensor)
+        # REGRA 4: Timeout de Transferência para a Esquerda
         # ---------------------------------------------------------------------
-        if self._box_in_transit_start_time and self.tags.get("conveyorEntry"):
-            elapsed = now - self._box_in_transit_start_time
-            # Se a caixa entrou há mais tempo que o limite e ainda não atingiu a mesa:
-            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not self.tags.get("loaded"):
+        if self._transfer_left_start_time and self.tags.get("transferLeft"):
+            elapsed = now - self._transfer_left_start_time
+            if elapsed > TIMEOUT_TRANSFER_SEC and not self.tags.get("atLeftEntry"):
                 anomaly = AnomalyReport(
-                    anomaly_id=f"ANOM_TIMEOUT_ENTRY_{int(now)}",
-                    anomaly_type="TRANSPORT_TIMEOUT",
+                    anomaly_id=f"ANOM_TIMEOUT_TRANS_LEFT_{int(now)}",
+                    anomaly_type="TRANSFER_TIMEOUT",
                     severity="CRITICAL",
-                    component="conveyorEntry (Esteira de Entrada)",
-                    message=f"Tempo limite de transporte da caixa excedido ({elapsed:.1f}s > {TIMEOUT_CONVEYOR_ENTRY_SEC}s). Caixa travou na esteira!",
+                    component="atLeftEntry (Sensor Entrada Saída Esquerda) / transferLeft",
+                    message=f"Tempo limite de transferência esquerda excedido ({elapsed:.1f}s > {TIMEOUT_TRANSFER_SEC:.1f}s). Mesa em desvio mas sensor 'atLeftEntry' não detectou a peça (falha Stuck OFF ou mesa travada)!",
                     timestamp_iso=now_iso,
                     timestamp_unix=now,
-                    current_marking=current_active_places,
-                    suggested_action="Verificar se o pallet travou nos roletes ou se a esteira está patinando."
+                    current_marking=current_active,
+                    suggested_action="Verifique se o sensor 'atLeftEntry' está com falha Fail OFF ou se o atuador transferLeft travou."
+                )
+                return self._register_anomaly(anomaly)
+
+        # ---------------------------------------------------------------------
+        # REGRA 5: Timeout de Transferência para a Direita
+        # ---------------------------------------------------------------------
+        if self._transfer_right_start_time and self.tags.get("transferRight"):
+            elapsed = now - self._transfer_right_start_time
+            if elapsed > TIMEOUT_TRANSFER_SEC and not self.tags.get("atRightEntry"):
+                anomaly = AnomalyReport(
+                    anomaly_id=f"ANOM_TIMEOUT_TRANS_RIGHT_{int(now)}",
+                    anomaly_type="TRANSFER_TIMEOUT",
+                    severity="CRITICAL",
+                    component="atRightEntry (Sensor Entrada Saída Direita) / transferRight",
+                    message=f"Tempo limite de transferência direita excedido ({elapsed:.1f}s > {TIMEOUT_TRANSFER_SEC:.1f}s). Mesa em desvio mas sensor 'atRightEntry' não detectou a peça (falha Stuck OFF ou mesa travada)!",
+                    timestamp_iso=now_iso,
+                    timestamp_unix=now,
+                    current_marking=current_active,
+                    suggested_action="Verifique se o sensor 'atRightEntry' está com falha Fail OFF ou se o atuador transferRight travou."
+                )
+                return self._register_anomaly(anomaly)
+
+        # ---------------------------------------------------------------------
+        # REGRA 6: Timeout na Esteira de Saída Esquerda
+        # ---------------------------------------------------------------------
+        if self._exit_left_start_time and self.tags.get("conveyorLeft"):
+            elapsed = now - self._exit_left_start_time
+            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not self.tags.get("atLeftExit"):
+                anomaly = AnomalyReport(
+                    anomaly_id=f"ANOM_TIMEOUT_EXIT_LEFT_{int(now)}",
+                    anomaly_type="EXIT_TIMEOUT",
+                    severity="CRITICAL",
+                    component="atLeftExit (Sensor Fim de Linha Esquerda) / conveyorLeft",
+                    message=f"Tempo limite na esteira de saída esquerda excedido ({elapsed:.1f}s). Peça não atingiu o fim da linha (Sensor 'atLeftExit' em falha Stuck OFF)!",
+                    timestamp_iso=now_iso,
+                    timestamp_unix=now,
+                    current_marking=current_active,
+                    suggested_action="Inspecione o sensor 'atLeftExit' no Factory I/O (remova a falha Fail OFF)."
+                )
+                return self._register_anomaly(anomaly)
+
+        # ---------------------------------------------------------------------
+        # REGRA 7: Timeout na Esteira de Saída Direita
+        # ---------------------------------------------------------------------
+        if self._exit_right_start_time and self.tags.get("conveyorRight"):
+            elapsed = now - self._exit_right_start_time
+            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not self.tags.get("atRightExit"):
+                anomaly = AnomalyReport(
+                    anomaly_id=f"ANOM_TIMEOUT_EXIT_RIGHT_{int(now)}",
+                    anomaly_type="EXIT_TIMEOUT",
+                    severity="CRITICAL",
+                    component="atRightExit (Sensor Fim de Linha Direita) / conveyorRight",
+                    message=f"Tempo limite na esteira de saída direita excedido ({elapsed:.1f}s). Peça não atingiu o fim da linha (Sensor 'atRightExit' em falha Stuck OFF)!",
+                    timestamp_iso=now_iso,
+                    timestamp_unix=now,
+                    current_marking=current_active,
+                    suggested_action="Inspecione o sensor 'atRightExit' no Factory I/O (remova a falha Fail OFF)."
                 )
                 return self._register_anomaly(anomaly)
 
         return None
 
     def inject_synthetic_anomaly(self, anomaly_type: str) -> AnomalyReport:
-        """Permite injetar anomalias programadas para testes e demonstrações."""
+        """Permite injetar anomalias programadas para testes e demonstrações de auditoria."""
         now = time.time()
         now_iso = datetime.now(timezone.utc).isoformat()
-        current_active_places = [p for p, active in self.places.items() if active]
+        current_active = [p for p, v in self.petri_net.estados.items() if v > 0]
 
         if anomaly_type == "STUCK_OFF_HIGH_SENSOR":
             anomaly = AnomalyReport(
@@ -191,8 +677,8 @@ class PetriNetEngine:
                 message="[FALHA INJETADA] Sensor de altura não respondeu durante a passagem de caixa alta. Transição proibida!",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
-                current_marking=current_active_places,
-                suggested_action="Substituir ou limpar o sensor óptico de topo."
+                current_marking=current_active,
+                suggested_action="Substituir ou limpar o sensor óptico de topo no Factory I/O."
             )
         elif anomaly_type == "STUCK_ON_PRESENCE":
             anomaly = AnomalyReport(
@@ -203,8 +689,8 @@ class PetriNetEngine:
                 message="[FALHA INJETADA] Sensor de presença travado em nível lógico alto permanente. Risco de colisão!",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
-                current_marking=current_active_places,
-                suggested_action="Desobstruir a entrada da esteira."
+                current_marking=current_active,
+                suggested_action="Desobstruir a entrada da esteira no Factory I/O."
             )
         elif anomaly_type == "ILLEGAL_TRANSITION":
             anomaly = AnomalyReport(
@@ -215,7 +701,7 @@ class PetriNetEngine:
                 message="[FALHA INJETADA] Ativação indevida de motor sem token ativo no lugar correspondente da Rede de Petri.",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
-                current_marking=current_active_places,
+                current_marking=current_active,
                 suggested_action="Verificar integridade do programa Ladder e sensores de posição."
             )
         else:
@@ -227,42 +713,76 @@ class PetriNetEngine:
                 message=f"[FALHA INJETADA] Anomalia simulada: {anomaly_type}",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
-                current_marking=current_active_places,
+                current_marking=current_active,
                 suggested_action="Inspecionar linha de produção."
             )
 
         return self._register_anomaly(anomaly)
 
     def _register_anomaly(self, anomaly: AnomalyReport) -> AnomalyReport:
-        """Registra a anomalia se ela já não estiver ativa."""
-        # Evita duplicatas do mesmo tipo em sequência rápida
-        if not any(a.anomaly_type == anomaly.anomaly_type and a.is_active for a in self.active_anomalies):
+        """Registra a anomalia se ela já não estiver ativa (evita duplicatas sucessivas)."""
+        if not any(a.anomaly_type == anomaly.anomaly_type and a.component == anomaly.component and a.is_active for a in self.active_anomalies):
             self.active_anomalies.append(anomaly)
             self.anomaly_history.append(anomaly)
         return anomaly
 
     def clear_anomalies(self):
-        """Limpa as anomalias ativas após intervenção do operador."""
+        """Desativa as anomalias ativas após intervenção do operador."""
         for a in self.active_anomalies:
             a.is_active = False
         self.active_anomalies.clear()
-        self._conveyor_entry_start_time = None
-        self._pallet_sensor_start_time = None
+        self._sensor_high_start_time.clear()
         self._box_in_transit_start_time = None
-        self._transfer_start_time = None
+        self._transfer_left_start_time = None
+        self._transfer_right_start_time = None
+        self._exit_left_start_time = None
+        self._exit_right_start_time = None
+
+    def reset(self, reset_counters: bool = False):
+        """
+        Restaura a Rede de Petri para sua marcação inicial segura (p1=1, p16=1, demais=0),
+        eliminando fichas residuais ou vazamentos em paradas/resets.
+        """
+        self.clear_anomalies()
+        self.petri_net = create_initial_petri_net()
+        self._prev_tags = dict(self.tags)
+        if reset_counters:
+            self.caixas_esquerda = 0
+            self.caixas_direita = 0
+            self.tags["contador"] = 0
+            self._last_plc_counter = 0
 
     def get_status_summary(self) -> Dict[str, Any]:
-        """Retorna o estado completo da Rede de Petri e da saúde do ativo."""
-        active_places = [p for p, v in self.places.items() if v]
-        active_transitions = [t for t, v in self.transitions.items() if v]
+        """
+        Retorna o estado completo e atualizado da Rede de Petri e da saúde do ativo.
+        Executa uma checagem contínua de anomalias a cada chamada.
+        """
+        # Garante avaliação de timeouts e estados travados em tempo real
+        self.check_anomalies()
+
+        # Lugares ativos (onde o número de fichas é maior que zero)
+        active_places = [p for p, v in self.petri_net.estados.items() if v > 0]
+        places_state = {p: (self.petri_net.estados.get(p, 0) > 0) for p in [f"p{i}" for i in range(1, 17)]}
+
         has_critical_fault = any(a.severity == "CRITICAL" and a.is_active for a in self.active_anomalies)
+        
+        plc_count = int(self.tags.get("contador", 0))
+        twin_total = self.caixas_esquerda + self.caixas_direita
+        # O total geral reflete as caixas contadas pela esteira ou o contador oficial do CLP
+        total_classificadas = max(twin_total, plc_count)
 
         return {
             "health_status": "CRITICAL_FAULT" if has_critical_fault else "HEALTHY",
             "active_places": active_places,
-            "active_transitions": active_transitions,
-            "places_state": self.places,
-            "tags_state": self.tags,
+            "active_transitions": [],
+            "places_state": places_state,
+            "petri_estados": dict(self.petri_net.estados),
+            "tags_state": dict(self.tags),
+            "caixas_esquerda": self.caixas_esquerda,
+            "caixas_direita": self.caixas_direita,
+            "caixas_total": total_classificadas,
+            "historico_esquerda": self.total_historico_esquerda,
+            "historico_direita": self.total_historico_direita,
             "active_anomalies": [a.to_dict() for a in self.active_anomalies if a.is_active],
             "anomaly_history": [a.to_dict() for a in self.anomaly_history],
             "total_anomalies_recorded": len(self.anomaly_history)
