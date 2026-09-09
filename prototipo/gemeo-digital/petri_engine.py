@@ -484,11 +484,16 @@ class PetriNetEngine:
         if cleared_any and component_name in self._sensor_high_start_time:
             self._sensor_high_start_time[component_name] = None
 
-    def _diagnose_sequence_violation(self, edge_event: str, error_msg: str) -> AnomalyReport:
+    def _diagnose_sequence_violation(self, edge_event: str, error_msg: Any) -> AnomalyReport:
         """
         Interpreta uma falha matemática de disparo de transição e diagnostica
         a causa-raiz física no Factory I/O (qual sensor falhou ou foi pulado).
         """
+        if isinstance(error_msg, (list, tuple)):
+            error_msg = " ".join(str(m) for m in error_msg)
+        else:
+            error_msg = str(error_msg or "")
+
         now = time.time()
         now_iso = datetime.now(timezone.utc).isoformat()
         current_active = [p for p, fichas in self.petri_net.estados.items() if fichas > 0]
