@@ -125,7 +125,7 @@ dt = service.connector
 with st.sidebar:
     st.image("https://img.icons8.com/fluency/96/robot-arm.png", width=70)
     st.title("Painel de Controle")
-    st.caption("Controle Supervisório e Injeção de Falhas")
+    st.caption("Controle Supervisório da Planta")
 
     st.markdown("---")
     st.subheader("🎮 Comandos do Operador")
@@ -153,25 +153,6 @@ with st.sidebar:
             dt.petri_engine.reset(reset_counters=True)
             st.toast("Contadores zerados!", icon="🗑️")
             st.rerun()
-
-    st.markdown("---")
-    st.subheader("🧪 Injeção de Falhas (Testes)")
-    st.caption("Simulação de anomalias para auditoria do Gêmeo Digital")
-
-    if st.button("⚠️ Injetar: Sensor Altura Stuck OFF", use_container_width=True):
-        dt.inject_fault("STUCK_OFF_HIGH_SENSOR")
-        st.toast("Falha injetada: Sensor de Altura Stuck OFF!", icon="🚨")
-        st.rerun()
-
-    if st.button("⚠️ Injetar: Presença Stuck ON", use_container_width=True):
-        dt.inject_fault("STUCK_ON_PRESENCE")
-        st.toast("Falha injetada: Sensor de Presença Stuck ON!", icon="🚨")
-        st.rerun()
-
-    if st.button("⚠️ Injetar: Transição Proibida", use_container_width=True):
-        dt.inject_fault("ILLEGAL_TRANSITION")
-        st.toast("Falha injetada: Transição Ilegal de Estados!", icon="🚨")
-        st.rerun()
 
     st.markdown("---")
     st.caption("Padrão: ISO/IEC 30173 & ISO 23247")
