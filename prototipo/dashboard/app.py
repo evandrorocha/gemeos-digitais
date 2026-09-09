@@ -96,6 +96,9 @@ class DigitalTwinBackgroundService:
             self.loop.run_forever()
         except Exception as e:
             print(f"[ERRO SERVIÇO OPC UA]: {e}")
+            if not self.connector._monitor_task or self.connector._monitor_task.done():
+                self.connector._monitor_task = self.loop.create_task(self.connector._periodic_monitor_loop())
+            self.loop.run_forever()
 
     def execute_async(self, coro):
         """Executa comandos de forma thread-safe na thread do conector."""

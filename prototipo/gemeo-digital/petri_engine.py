@@ -355,10 +355,6 @@ class PetriNetEngine:
             if sensor_name in self.MONITORED_SENSORS or sensor_name == "stop":
                 self.auto_clear_anomaly_for_component(sensor_name)
 
-        # 2. Se a inconsistência óptica de altura foi corrigida:
-        if not self.tags.get("highSensor") or self.tags.get("palletSensor"):
-            self.auto_clear_anomaly_for_component("highSensor")
-
         # 3. Se um sensor que estava com Stuck OFF ou Timeout voltou a emitir pulso (_P):
         if edge_event and edge_event.endswith("_P"):
             sensor_name = edge_event[:-2]
@@ -367,7 +363,6 @@ class PetriNetEngine:
         # 4. Ao iniciar novo ciclo (start_P) ou reset (reset_P), limpa anomalias
         if edge_event in ["start_P", "reset_P"]:
             self.clear_anomalies()
-            self.auto_clear_anomaly_for_component("highSensor")
 
         # Rastreamento da rota de classificação ativa (Esquerda = Baixa, Direita = Alta)
         if edge_event == "transferLeft_P" or (tag == "transferLeft" and val):
@@ -421,7 +416,8 @@ class PetriNetEngine:
         elif tag == "transferRight":
             self._transfer_right_start_time = now if val else None
         elif tag == "conveyorEntry" and not val:
-            self._box_in_transit_start_time = None
+            if not self.tags.get("load") and self.petri_net.estados.get("p4", 0) == 0:
+                self._box_in_transit_start_time = None
 
         # Se a linha está em repouso (p1), eventos de alimentação (entrada) ou desobstrução/saída residual
         # nas esteiras de saída (purga de caixas anteriores) são comportamentos físicos normais.
@@ -544,212 +540,10 @@ class PetriNetEngine:
 
     def check_anomalies(self) -> Optional[AnomalyReport]:
         """
-        Aplica regras contínuas de tempo real (sensores travados e timeouts de transporte).
-        Pode ser invocado periodicamente mesmo quando nenhum evento novo chega do CLP.
+        Verificações periódicas de anomalias.
+        Atualmente todas as regras de timeout e inconsistência customizadas foram removidas,
+        confiando exclusivamente nas transições formais da Rede de Petri do backend.
         """
-        now = time.time()
-        now_iso = datetime.now(timezone.utc).isoformat()
-        current_active = [p for p, v in self.petri_net.estados.items() if v > 0]
-
-        # ---------------------------------------------------------------------
-        # REGRA 1: Inconsistência Óptica Física (highSensor ON sem palletSensor)
-        # ---------------------------------------------------------------------
-        # No Factory I/O, a cortina óptica de altura está acima do sensor de presença.
-        # Uma caixa não pode cortar o feixe superior sem cortar o feixe inferior.
-        if self.tags.get("highSensor") and not self.tags.get("palletSensor"):
-            anomaly = AnomalyReport(
-                anomaly_id=f"ANOM_OPTICAL_INCONSISTENCY_{int(now)}",
-                anomaly_type="SENSOR_STUCK_ON",
-                severity="CRITICAL",
-                component="highSensor (Sensor de Altura)",
-                message="Inconsistência Óptica: Sensor de topo (highSensor) acionado sem detecção no feixe inferior (palletSensor). Sensor de altura em falha Stuck ON!",
-                timestamp_iso=now_iso,
-                timestamp_unix=now,
-                current_marking=current_active,
-                suggested_action="Remova a falha Fail ON do sensor 'highSensor' no Factory I/O."
-            )
-            return self._register_anomaly(anomaly)
-
-        # ---------------------------------------------------------------------
-        # REGRA 2: Detecção de Sensor Travado (Stuck ON para NA / Obstrução Contínua para NF)
-        # ---------------------------------------------------------------------
-        for sensor in self.MONITORED_SENSORS:
-            # Determina se o sensor está detectando presença de objeto:
-            # Sensores NA (palletSensor, highSensor, loaded): ativos quando True (1)
-            # Sensores NF retrorreflexivos (atLeftEntry, atLeftExit, atRightEntry, atRightExit): ativos quando False (0, feixe cortado)
-            is_sensor_active = False
-            if sensor in self.NO_SENSORS:
-                is_sensor_active = bool(self.tags.get(sensor))
-            elif sensor in self.NC_SENSORS:
-                is_sensor_active = (self.tags.get(sensor) is False)
-
-            if is_sensor_active:
-                actuator_running = False
-                if sensor in ["palletSensor", "highSensor"]:
-                    actuator_running = bool(self.tags.get("conveyorEntry")) or (self.petri_net.estados.get("p2", 0) > 0)
-                elif sensor == "loaded":
-                    # Sensor da mesa: só avalia Stuck ON se conveyorEntry estiver alimentando e a mesa NÃO estiver em rotação/transferência
-                    actuator_running = bool(self.tags.get("conveyorEntry")) and not (self.tags.get("transferLeft") or self.tags.get("transferRight"))
-                elif sensor in ["atLeftEntry", "atLeftExit"]:
-                    actuator_running = bool(self.tags.get("conveyorLeft") or self.tags.get("transferLeft"))
-                elif sensor in ["atRightEntry", "atRightExit"]:
-                    actuator_running = bool(self.tags.get("conveyorRight") or self.tags.get("transferRight"))
-                else:
-                    actuator_running = True
-
-                if not actuator_running:
-                    self._sensor_high_start_time[sensor] = now
-                    continue
-
-                start_time = self._sensor_high_start_time.get(sensor)
-                if start_time is None:
-                    self._sensor_high_start_time[sensor] = now
-                    start_time = now
-
-                elapsed = now - start_time
-                max_time = 5.0 if sensor in ["palletSensor", "highSensor"] else MAX_PRESENCE_TIME_SEC
-                if elapsed > max_time:
-                    if sensor in self.NO_SENSORS:
-                        msg = f"Sensor '{sensor}' travado em nível alto por {elapsed:.1f}s (> {max_time:.1f}s) com a esteira rodando. Falha Stuck ON!"
-                        action = f"Inspecione o sensor '{sensor}' no Factory I/O (remova a falha Fail ON)."
-                    else:
-                        msg = f"Sensor retrorreflexivo '{sensor}' com feixe cortado continuamente por {elapsed:.1f}s (> {max_time:.1f}s) com a esteira rodando. Caixa enroscada ou falha Fail OFF / desalinhamento!"
-                        action = f"Verifique se há caixa enroscada no sensor '{sensor}' ou remova a falha Fail OFF no Factory I/O."
-
-                    anomaly = AnomalyReport(
-                        anomaly_id=f"ANOM_STUCK_{sensor.upper()}_{int(now)}",
-                        anomaly_type="SENSOR_STUCK_ON",
-                        severity="CRITICAL",
-                        component=f"{sensor} (Sensor)",
-                        message=msg,
-                        timestamp_iso=now_iso,
-                        timestamp_unix=now,
-                        current_marking=current_active,
-                        suggested_action=action
-                    )
-                    return self._register_anomaly(anomaly)
-            else:
-                self._sensor_high_start_time[sensor] = None
-
-        # ---------------------------------------------------------------------
-        # REGRA 3: Timeout de Transporte na Entrada (Caixa não atinge 'loaded')
-        # ---------------------------------------------------------------------
-        if self._box_in_transit_start_time and self.tags.get("conveyorEntry"):
-            elapsed = now - self._box_in_transit_start_time
-            if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC:
-                anomaly = AnomalyReport(
-                    anomaly_id=f"ANOM_TIMEOUT_LOADED_{int(now)}",
-                    anomaly_type="TRANSPORT_TIMEOUT",
-                    severity="CRITICAL",
-                    component="loaded (Sensor da Mesa Transfer) / conveyorEntry",
-                    message=f"Tempo limite de transporte na esteira excedido ({elapsed:.1f}s > {TIMEOUT_CONVEYOR_ENTRY_SEC:.1f}s). Peça não atingiu a mesa transfer (Sensor 'loaded' em falha Stuck OFF ou esteira travada)!",
-                    timestamp_iso=now_iso,
-                    timestamp_unix=now,
-                    current_marking=current_active,
-                    suggested_action="Verifique se o sensor 'loaded' está com falha Fail OFF no Factory I/O ou se o pallet travou nos roletes."
-                )
-                return self._register_anomaly(anomaly)
-
-        # ---------------------------------------------------------------------
-        # REGRA 4: Timeout de Transferência para a Esquerda
-        # ---------------------------------------------------------------------
-        if self.tags.get("transferLeft"):
-            if self._transfer_left_start_time is None:
-                self._transfer_left_start_time = now
-            elapsed = now - self._transfer_left_start_time
-            # Sensor atLeftEntry é NF: True = livre (peça NÃO atingiu).
-            not_reached = (self.petri_net.estados.get("p6", 0) > 0) or (self.tags.get("atLeftEntry") is not False)
-            if elapsed > TIMEOUT_TRANSFER_SEC and not_reached:
-                anomaly = AnomalyReport(
-                    anomaly_id=f"ANOM_TIMEOUT_TRANS_LEFT_{int(now)}",
-                    anomaly_type="TRANSFER_TIMEOUT",
-                    severity="CRITICAL",
-                    component="atLeftEntry (Sensor Entrada Saída Esquerda) / transferLeft",
-                    message=f"Tempo limite de transferência esquerda excedido ({elapsed:.1f}s > {TIMEOUT_TRANSFER_SEC:.1f}s). Mesa em desvio mas sensor 'atLeftEntry' não detectou a peça (falha Stuck OFF ou mesa travada)!",
-                    timestamp_iso=now_iso,
-                    timestamp_unix=now,
-                    current_marking=current_active,
-                    suggested_action="Verifique se o sensor 'atLeftEntry' está com falha Fail OFF ou se o atuador transferLeft travou."
-                )
-                return self._register_anomaly(anomaly)
-        else:
-            self._transfer_left_start_time = None
-
-        # ---------------------------------------------------------------------
-        # REGRA 5: Timeout de Transferência para a Direita
-        # ---------------------------------------------------------------------
-        if self.tags.get("transferRight"):
-            if self._transfer_right_start_time is None:
-                self._transfer_right_start_time = now
-            elapsed = now - self._transfer_right_start_time
-            # Sensor atRightEntry é NF: True = livre (peça NÃO atingiu a esteira de saída).
-            not_reached = (self.petri_net.estados.get("p8", 0) > 0) or (self.tags.get("atRightEntry") is not False)
-            if elapsed > TIMEOUT_TRANSFER_SEC and not_reached:
-                anomaly = AnomalyReport(
-                    anomaly_id=f"ANOM_TIMEOUT_TRANS_RIGHT_{int(now)}",
-                    anomaly_type="TRANSFER_TIMEOUT",
-                    severity="CRITICAL",
-                    component="atRightEntry (Sensor Entrada Saída Direita) / transferRight",
-                    message=f"Tempo limite de transferência direita excedido ({elapsed:.1f}s > {TIMEOUT_TRANSFER_SEC:.1f}s). Mesa em desvio mas sensor 'atRightEntry' não detectou a peça (falha Stuck OFF ou mesa travada)!",
-                    timestamp_iso=now_iso,
-                    timestamp_unix=now,
-                    current_marking=current_active,
-                    suggested_action="Verifique se o sensor 'atRightEntry' está com falha Fail OFF ou se o atuador transferRight travou."
-                )
-                return self._register_anomaly(anomaly)
-        else:
-            self._transfer_right_start_time = None
-
-        # ---------------------------------------------------------------------
-        # REGRA 6: Timeout na Esteira de Saída Esquerda
-        # ---------------------------------------------------------------------
-        if self.tags.get("conveyorLeft"):
-            if self._exit_left_start_time is None and self.petri_net.estados.get("p7", 0) > 0:
-                self._exit_left_start_time = now
-            if self._exit_left_start_time:
-                elapsed = now - self._exit_left_start_time
-                not_reached = (self.petri_net.estados.get("p7", 0) > 0) or (self.tags.get("atLeftExit") is not False)
-                if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not_reached:
-                    anomaly = AnomalyReport(
-                        anomaly_id=f"ANOM_TIMEOUT_EXIT_LEFT_{int(now)}",
-                        anomaly_type="EXIT_TIMEOUT",
-                        severity="CRITICAL",
-                        component="atLeftExit (Sensor Fim de Linha Esquerda) / conveyorLeft",
-                        message=f"Tempo limite na esteira de saída esquerda excedido ({elapsed:.1f}s). Peça não atingiu o fim da linha (Sensor 'atLeftExit' em falha Stuck OFF)!",
-                        timestamp_iso=now_iso,
-                        timestamp_unix=now,
-                        current_marking=current_active,
-                        suggested_action="Inspecione o sensor 'atLeftExit' no Factory I/O (remova a falha Fail OFF)."
-                    )
-                    return self._register_anomaly(anomaly)
-        else:
-            self._exit_left_start_time = None
-
-        # ---------------------------------------------------------------------
-        # REGRA 7: Timeout na Esteira de Saída Direita
-        # ---------------------------------------------------------------------
-        if self.tags.get("conveyorRight"):
-            if self._exit_right_start_time is None and self.petri_net.estados.get("p9", 0) > 0:
-                self._exit_right_start_time = now
-            if self._exit_right_start_time:
-                elapsed = now - self._exit_right_start_time
-                not_reached = (self.petri_net.estados.get("p9", 0) > 0) or (self.tags.get("atRightExit") is not False)
-                if elapsed > TIMEOUT_CONVEYOR_ENTRY_SEC and not_reached:
-                    anomaly = AnomalyReport(
-                        anomaly_id=f"ANOM_TIMEOUT_EXIT_RIGHT_{int(now)}",
-                        anomaly_type="EXIT_TIMEOUT",
-                        severity="CRITICAL",
-                        component="atRightExit (Sensor Fim de Linha Direita) / conveyorRight",
-                        message=f"Tempo limite na esteira de saída direita excedido ({elapsed:.1f}s). Peça não atingiu o fim da linha (Sensor 'atRightExit' em falha Stuck OFF)!",
-                        timestamp_iso=now_iso,
-                        timestamp_unix=now,
-                        current_marking=current_active,
-                        suggested_action="Inspecione o sensor 'atRightExit' no Factory I/O (remova a falha Fail OFF)."
-                    )
-                    return self._register_anomaly(anomaly)
-        else:
-            self._exit_right_start_time = None
-
         return None
 
     def inject_synthetic_anomaly(self, anomaly_type: str) -> AnomalyReport:

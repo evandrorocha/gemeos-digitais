@@ -37,6 +37,13 @@ class SubscriptionHandler:
         except Exception as e:
             logger.error(f"Erro ao processar datachange da tag: {e}")
 
+    def status_change_notification(self, status: Any):
+        logger.warning(f"OPC UA Status Change recebido: {status}")
+        self.connector.is_connected = False
+
+    def event_notification(self, event: Any):
+        pass
+
 
 class DigitalTwinConnector:
     """
@@ -92,9 +99,17 @@ class DigitalTwinConnector:
             except Exception as e:
                 logger.error(f"Erro em callback de estado: {e}")
 
-    async def connect_and_subscribe(self):
-        """Estabelece a conexão OPC UA e inicia a subscrição assíncrona."""
-        self._loop = asyncio.get_running_loop()
+    async def reconnect(self):
+        """Restabelece a conexão limpa com o servidor OPC UA e reativa a subscrição."""
+        if self.client:
+            try:
+                await self.client.disconnect()
+            except Exception:
+                pass
+        self.is_connected = False
+        self._nodes_cache.clear()
+        self._node_id_to_name.clear()
+
         logger.info(f"Conectando ao servidor OPC UA em {self.url}...")
         self.client = Client(url=self.url)
         await self.client.connect()
@@ -120,7 +135,7 @@ class DigitalTwinConnector:
                     pass
 
         self.petri_engine.set_baseline_tags(initial_baseline)
-        logger.info(f"Cache criado com {len(self._nodes_cache)} variáveis (baseline inicial carregado).")
+        logger.info(f"Cache criado com {len(self._nodes_cache)} variáveis (baseline carregado).")
 
         # Cria a subscrição
         handler = SubscriptionHandler(self)
@@ -128,25 +143,47 @@ class DigitalTwinConnector:
         await self._subscription.subscribe_data_change(tags_to_subscribe)
         logger.info(f"Subscrição ativada para {len(tags_to_subscribe)} tags.")
 
+    async def connect_and_subscribe(self):
+        """Estabelece a conexão OPC UA e inicia a subscrição assíncrona."""
+        self._loop = asyncio.get_running_loop()
+        await self.reconnect()
+
         # Inicia loop de monitoramento contínuo em segundo plano para detecção em tempo real de timeouts
-        self._monitor_task = asyncio.create_task(self._periodic_monitor_loop())
+        if not self._monitor_task or self._monitor_task.done():
+            self._monitor_task = asyncio.create_task(self._periodic_monitor_loop())
 
         # Auto-Higienização e Inicialização Segura do CLP
         logger.info("🔧 Executando auto-higienização da Rede de Petri no CLP...")
         await self.auto_initialize_plc()
 
     async def _periodic_monitor_loop(self):
-        """Loop contínuo de segundo plano para monitorar timeouts e sensores travados (Stuck ON/OFF)."""
-        while self.is_connected:
+        """Loop contínuo de segundo plano para monitorar timeouts, sensores travados e reconexão automática."""
+        while True:
             try:
+                if not self.is_connected:
+                    logger.info("Conexão OPC UA inativa ou perdida. Tentando reconectar...")
+                    try:
+                        await self.reconnect()
+                    except Exception as e:
+                        logger.debug(f"Aguardando servidor OPC UA ficar disponível: {e}")
+                        await asyncio.sleep(2.0)
+                        continue
+
+                # Checagem em tempo real de anomalias (timeouts e travamentos)
                 anomaly = self.petri_engine.check_anomalies()
                 if anomaly and anomaly.severity == "CRITICAL" and anomaly.is_active:
                     # Se ainda não desligou, dispara emergency_stop autônomo
-                    if not self.petri_engine.tags.get("desligar") and not self.petri_engine.tags.get("stop"):
+                    # Nota: 'stop' é sensor NF (True em operação normal), portanto só checamos 'desligar'
+                    if not self.petri_engine.tags.get("desligar"):
                         logger.warning(f"🚨 [MONITOR PERIÓDICO] Falha crítica detectada: {anomaly.message}")
                         await self.emergency_stop(reason=anomaly.message)
+            except asyncio.CancelledError:
+                break
             except Exception as e:
                 logger.error(f"Erro no loop periódico de monitoramento: {e}")
+                err_str = str(e).lower()
+                if "disconnect" in err_str or "connection" in err_str or "closed" in err_str:
+                    self.is_connected = False
             await asyncio.sleep(0.25)
 
     async def auto_initialize_plc(self):
@@ -206,6 +243,9 @@ class DigitalTwinConnector:
             return True
         except Exception as e:
             logger.error(f"Erro ao escrever na tag {tag_name}: {e}")
+            err_str = str(e).lower()
+            if "disconnect" in err_str or "connection" in err_str or "closed" in err_str:
+                self.is_connected = False
             return False
 
     async def emergency_stop(self, reason: str = "Parada de Emergência acionada pelo Gêmeo Digital"):
