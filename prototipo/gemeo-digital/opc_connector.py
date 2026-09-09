@@ -76,6 +76,14 @@ class DigitalTwinConnector:
         if event is None:
             return # Ruído descartado
 
+        # Se o operador apertar o botão físico RESET no Factory I/O:
+        if tag_name == "reset" and event.value is True:
+            logger.info("Botão físico RESET do Factory I/O pressionado. Executando reset_plant()...")
+            if self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.reset_plant(), self._loop)
+            else:
+                asyncio.create_task(self.reset_plant())
+
         # 2. Atualização da Rede de Petri e Detecção de Falhas
         anomaly = self.petri_engine.update_from_sanitized_event(event)
 
@@ -201,19 +209,27 @@ class DigitalTwinConnector:
                 logger.debug(f"Aviso ao inicializar CTU_0: {e}")
 
             await self.write_tag("desligar", False)
-            await self.write_tag("stop", False)
-            await self.write_tag("reset", True)
-            await asyncio.sleep(1.0)
-            await self.write_tag("reset", False)
-            await self.write_tag("desligar", False)
+            await self.write_tag("stop", True)
+            await self.write_tag("conveyorEntry", False)
+            await self.write_tag("load", False)
+            await self.write_tag("transferLeft", False)
+            await self.write_tag("transferRight", False)
+            await self.write_tag("alto", False)
+            await self.write_tag("aux0", False)
+            await self.write_tag("start", False)
+            for t in [f"t{i}" for i in range(1, 18)]:
+                await self.write_tag(t, False)
 
-            for p in ["p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
+            await self.write_tag("reset", True)
+            await asyncio.sleep(0.3)
+            await self.write_tag("reset", False)
+
+            for p in [f"p{i}" for i in range(2, 16)]:
                 await self.write_tag(p, False)
             await self.write_tag("p1", True)
-            await self.write_tag("p14", True)
             await self.write_tag("p16", True)
             self.petri_engine.reset()
-            logger.info("✅ CLP auto-inicializado com sucesso em estado de prontidão (p1=True).")
+            logger.info("✅ CLP auto-inicializado com sucesso em estado de prontidão (p1=True, p16=True).")
         except Exception as e:
             logger.warning(f"Aviso na auto-inicialização do CLP: {e}")
 
@@ -252,10 +268,12 @@ class DigitalTwinConnector:
         """Envia o comando de parada imediata para o CLP desligando todos os motores na hora."""
         logger.warning(f"🛑 [EMERGÊNCIA] {reason}")
         await self.write_tag("desligar", True)
-        await self.write_tag("stop", True)
-        await self.write_tag("p2", False)
+        await self.write_tag("stop", False)  # Botão de parada acionado (NF -> False)
+        for p in [f"p{i}" for i in range(2, 16)]:
+            await self.write_tag(p, False)
         await self.write_tag("p1", True)
         await self.write_tag("conveyorEntry", False)
+        await self.write_tag("load", False)
         await self.write_tag("transferLeft", False)
         await self.write_tag("transferRight", False)
 
@@ -265,32 +283,41 @@ class DigitalTwinConnector:
         self.petri_engine.clear_anomalies()
         self.petri_engine.reset()
         
-        # 1. Configura a meta do contador CTU
+        # 1. Configura a meta do contador CTU e zera contagem
         try:
             node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
             await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
             node_rst = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.RESET")
             await node_rst.write_value(ua.DataValue(ua.Variant(True, ua.VariantType.Boolean)))
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(0.1)
             await node_rst.write_value(ua.DataValue(ua.Variant(False, ua.VariantType.Boolean)))
         except Exception:
             pass
 
-        # 2. Desarma as travas de segurança
+        # 2. Desarma travas de segurança e para atuadores
         await self.write_tag("desligar", False)
-        await self.write_tag("stop", False)
+        await self.write_tag("stop", True)  # NF restaurado
+        await self.write_tag("conveyorEntry", False)
+        await self.write_tag("load", False)
+        await self.write_tag("transferLeft", False)
+        await self.write_tag("transferRight", False)
 
-        # 3. Envia pulso de reset físico longo (1.0s) para o circuito Ladder do CLP
+        # 3. Zera variáveis auxiliares, flags de transição e classificação
+        await self.write_tag("alto", False)
+        await self.write_tag("aux0", False)
+        await self.write_tag("start", False)
+        for t in [f"t{i}" for i in range(1, 18)]:
+            await self.write_tag(t, False)
+
+        # 4. Envia pulso de reset físico para o circuito Ladder do CLP
         await self.write_tag("reset", True)
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.3)
         await self.write_tag("reset", False)
-        await self.write_tag("desligar", False)
 
-        # 4. Restaura a marcação inicial da Rede de Petri (p1, p14, p16 ativos) e limpa sinais residuais
-        for p in ["p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
+        # 5. Restaura estritamente a marcação inicial da Rede de Petri (p1=True, p16=True, demais=False)
+        for p in [f"p{i}" for i in range(2, 16)]:
             await self.write_tag(p, False)
         await self.write_tag("p1", True)
-        await self.write_tag("p14", True)
         await self.write_tag("p16", True)
 
     async def start_plant(self):
@@ -306,16 +333,14 @@ class DigitalTwinConnector:
             pass
 
         await self.write_tag("desligar", False)
-        await self.write_tag("stop", False)
-        for p in ["p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10", "p11", "p12", "p13", "p15"]:
+        await self.write_tag("stop", True)
+        for p in [f"p{i}" for i in range(2, 16)]:
             await self.write_tag(p, False)
-        await self.write_tag("p1", False)
-        await self.write_tag("p2", True)
-        await self.write_tag("p14", True)
+        await self.write_tag("p1", True)
         await self.write_tag("p16", True)
 
         await self.write_tag("start", True)
-        await asyncio.sleep(0.4)
+        await asyncio.sleep(0.3)
         await self.write_tag("start", False)
 
     def inject_fault(self, fault_type: str):

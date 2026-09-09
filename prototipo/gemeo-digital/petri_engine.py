@@ -6,11 +6,14 @@ de falhas de sensores físicos do Factory I/O (Stuck ON, Stuck OFF, Violação d
 
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
+import logging
 import os
 from pathlib import Path
 import sys
 import time
 from typing import Dict, List, Optional, Any
+
+logger = logging.getLogger("PETRI_ENGINE")
 
 # Importação da classe formal RedePetri criada no backend
 BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
@@ -137,6 +140,7 @@ class AnomalyReport:
     timestamp_unix: float
     current_marking: List[str]
     suggested_action: str
+    backend_message: str = ""
     is_active: bool = True
 
     def to_dict(self) -> Dict[str, Any]:
@@ -334,6 +338,8 @@ class PetriNetEngine:
                 edge_event = f"{tag}_{val}"
 
         self._prev_tags[tag] = val
+        if edge_event:
+            logger.info(f"⚡ [EVENTO]: {edge_event} | Estados ativos: {[k for k,v in self.petri_net.estados.items() if v > 0]}")
 
         # Atualização da variável interna 'alto' quando o CLP reporta a classificação
         if edge_event == "alto_P":
@@ -419,12 +425,17 @@ class PetriNetEngine:
             if not self.tags.get("load") and self.petri_net.estados.get("p4", 0) == 0:
                 self._box_in_transit_start_time = None
 
-        # Se a linha está em repouso (p1), eventos de alimentação (entrada) ou desobstrução/saída residual
-        # nas esteiras de saída (purga de caixas anteriores) são comportamentos físicos normais.
-        if self.petri_net.estados.get("p1", 0) > 0 and edge_event != "start_P":
-            if edge_event == "palletSensor_P":
+        # Sincronização automática: se a esteira está rodando e a Rede de Petri ainda está em p1,
+        # significa que a linha iniciou mesmo que o pulso elétrico do botão de start tenha sido instantâneo.
+        if self.petri_net.estados.get("p1", 0) > 0:
+            if edge_event in ["start_P", "conveyorEntry_P"] or self.tags.get("conveyorEntry"):
+                self.petri_net.processar_evento("start_P")
+                if self.tags.get("palletSensor") and self.petri_net.estados.get("p2", 0) > 0:
+                    self.petri_net.processar_evento("palletSensor_P")
+                return None
+            elif edge_event == "palletSensor_P":
                 self._box_in_transit_start_time = now
-            return self.check_anomalies()
+                return self.check_anomalies()
 
         # Se um sensor de saída (atLeftExit ou atRightExit) aciona fora de p7/p9 mas sem pular entrada (não em p6/p8),
         # trata-se do escoamento normal de uma caixa de ciclo anterior pela esteira de saída.
@@ -434,7 +445,7 @@ class PetriNetEngine:
             return self.check_anomalies()
 
         # Verificação imediata: Peça chegou em loaded sem token em p4 (palletSensor não detectou a peça)
-        if edge_event == "loaded_P" and self.petri_net.estados.get("p4", 0) == 0 and self.petri_net.estados.get("p2", 0) > 0:
+        if edge_event == "loaded_P" and self.petri_net.estados.get("p4", 0) == 0:
             anomaly = self._diagnose_sequence_violation(edge_event, "Peça atingiu a mesa transfer sem detecção no palletSensor")
             return self._register_anomaly(anomaly)
 
@@ -489,11 +500,12 @@ class PetriNetEngine:
                 anomaly_type="SENSOR_STUCK_OFF",
                 severity="CRITICAL",
                 component="palletSensor (Sensor de Presença na Entrada)",
-                message="Violação de Sequência: Peça atingiu a mesa transfer (loaded) sem ser detectada pelo sensor de entrada. Sensor 'palletSensor' falhou (Stuck OFF / Aberto)!",
+                message=f"Violação de Sequência: Peça atingiu a mesa transfer (loaded) sem ser detectada pelo sensor de entrada. Sensor 'palletSensor' falhou (Stuck OFF / Aberto)! [Backend: \"{error_msg}\"]",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
                 current_marking=current_active,
-                suggested_action="Inspecione o sensor óptico 'palletSensor' no Factory I/O (remova a falha Fail OFF ou desobstrua a lente)."
+                suggested_action="Inspecione o sensor óptico 'palletSensor' no Factory I/O (remova a falha Fail OFF ou desobstrua a lente).",
+                backend_message=error_msg
             )
 
         # Caso 2: Sensor de saída atLeftExit acionou sem passar por atLeftEntry (Stuck OFF no desvio esquerdo)
@@ -503,11 +515,12 @@ class PetriNetEngine:
                 anomaly_type="SENSOR_STUCK_OFF",
                 severity="CRITICAL",
                 component="atLeftEntry (Sensor Entrada Saída Esquerda)",
-                message="Violação de Sequência: Peça atingiu o fim da linha esquerda sem ser detectada na entrada do desvio. Sensor 'atLeftEntry' falhou (Stuck OFF)!",
+                message=f"Violação de Sequência: Peça atingiu o fim da linha esquerda sem ser detectada na entrada do desvio. Sensor 'atLeftEntry' falhou (Stuck OFF)! [Backend: \"{error_msg}\"]",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
                 current_marking=current_active,
-                suggested_action="Inspecione o sensor 'atLeftEntry' no Factory I/O (remova a falha Fail OFF)."
+                suggested_action="Inspecione o sensor 'atLeftEntry' no Factory I/O (remova a falha Fail OFF).",
+                backend_message=error_msg
             )
 
         # Caso 3: Sensor de saída atRightExit acionou sem passar por atRightEntry (Stuck OFF no desvio direito)
@@ -517,11 +530,12 @@ class PetriNetEngine:
                 anomaly_type="SENSOR_STUCK_OFF",
                 severity="CRITICAL",
                 component="atRightEntry (Sensor Entrada Saída Direita)",
-                message="Violação de Sequência: Peça atingiu o fim da linha direita sem ser detectada na entrada do desvio. Sensor 'atRightEntry' falhou (Stuck OFF)!",
+                message=f"Violação de Sequência: Peça atingiu o fim da linha direita sem ser detectada na entrada do desvio. Sensor 'atRightEntry' falhou (Stuck OFF)! [Backend: \"{error_msg}\"]",
                 timestamp_iso=now_iso,
                 timestamp_unix=now,
                 current_marking=current_active,
-                suggested_action="Inspecione o sensor 'atRightEntry' no Factory I/O (remova a falha Fail OFF)."
+                suggested_action="Inspecione o sensor 'atRightEntry' no Factory I/O (remova a falha Fail OFF).",
+                backend_message=error_msg
             )
 
         # Violação formal de sequência em estados ativos
@@ -531,11 +545,12 @@ class PetriNetEngine:
             anomaly_type="ILLEGAL_TRANSITION",
             severity="CRITICAL",
             component=comp_name,
-            message=f"Violação Formal de Estados: O evento '{edge_event}' ocorreu fora da sequência esperada na marcação {current_active}. {error_msg}",
+            message=f"Violação Formal de Estados: O evento '{edge_event}' ocorreu fora da sequência esperada na marcação {current_active}. [Backend: \"{error_msg}\"]",
             timestamp_iso=now_iso,
             timestamp_unix=now,
             current_marking=current_active,
-            suggested_action=f"Verifique o alinhamento da planta, sensores e se o componente '{comp_name}' falhou ou foi acionado indevidamente."
+            suggested_action=f"Verifique o alinhamento da planta, sensores e se o componente '{comp_name}' falhou ou foi acionado indevidamente.",
+            backend_message=error_msg
         )
 
     def check_anomalies(self) -> Optional[AnomalyReport]:
@@ -629,7 +644,20 @@ class PetriNetEngine:
         """
         self.clear_anomalies()
         self.petri_net = create_initial_petri_net()
-        self._prev_tags = dict(self.tags)
+        self._prev_tags.clear()
+        for s in self.MONITORED_SENSORS:
+            self.tags[s] = False
+            self._prev_tags[s] = False
+        self.tags["loaded"] = False
+        self._prev_tags["loaded"] = False
+        self.tags["highSensor"] = False
+        self._prev_tags["highSensor"] = False
+        self.tags["palletSensor"] = False
+        self._prev_tags["palletSensor"] = False
+        self.tags["start"] = False
+        self._prev_tags["start"] = False
+        self.tags["reset"] = False
+        self._prev_tags["reset"] = False
         if reset_counters:
             self.caixas_esquerda = 0
             self.caixas_direita = 0

@@ -204,11 +204,14 @@ def render_live_dashboard():
     if health == "CRITICAL_FAULT":
         col_b1, col_b2 = st.columns([5, 1])
         with col_b1:
+            first_anom = anomalies[0] if anomalies else {}
+            backend_msg = first_anom.get('backend_message', '')
+            backend_line = f"\n            **Mensagem Original da Rede de Petri (Backend):** `{backend_msg}`  " if backend_msg else ""
             st.error(f"""
             ### 🚨 PARADA DE EMERGÊNCIA ATIVADA PELO GÊMEO DIGITAL!
-            **Anomalia Detectada:** {anomalies[0]['message'] if anomalies else 'Violação no modelo de segurança'}  
-            **Componente Afetado:** `{anomalies[0]['component'] if anomalies else 'Desconhecido'}`  
-            **Ação Recomendada:** {anomalies[0]['suggested_action'] if anomalies else 'Inspecione a planta física'}
+            **Anomalia Detectada:** {first_anom.get('message', 'Violação no modelo de segurança')}  {backend_line}
+            **Componente Afetado:** `{first_anom.get('component', 'Desconhecido')}`  
+            **Ação Recomendada:** {first_anom.get('suggested_action', 'Inspecione a planta física')}
             """)
         with col_b2:
             st.write("")
@@ -470,7 +473,7 @@ def render_live_dashboard():
         anomaly_history = petri.get("anomaly_history") or petri.get("active_anomalies", [])
         if anomaly_history:
             df_anom = pd.DataFrame(anomaly_history)
-            cols_anom = [c for c in ["timestamp_iso", "anomaly_id", "severity", "component", "message", "current_marking", "suggested_action"] if c in df_anom.columns]
+            cols_anom = [c for c in ["timestamp_iso", "anomaly_id", "severity", "component", "message", "backend_message", "current_marking", "suggested_action"] if c in df_anom.columns]
             st.dataframe(df_anom[cols_anom].astype(str), use_container_width=True, height=220)
         else:
             st.success("✅ Nenhuma anomalia registrada no histórico de operação.")
