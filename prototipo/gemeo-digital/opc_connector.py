@@ -267,6 +267,7 @@ class DigitalTwinConnector:
     async def emergency_stop(self, reason: str = "Parada de Emergência acionada pelo Gêmeo Digital"):
         """Envia o comando de parada imediata para o CLP desligando todos os motores na hora."""
         logger.warning(f"🛑 [EMERGÊNCIA] {reason}")
+        await self.write_tag("stopDT", True)
         await self.write_tag("desligar", True)
         await self.write_tag("stop", False)  # Botão de parada acionado (NF -> False)
         for p in [f"p{i}" for i in range(2, 16)]:
@@ -282,6 +283,10 @@ class DigitalTwinConnector:
         logger.info("🔄 [RESET] Enviando comando de reset e restaurando marcação inicial no CLP...")
         self.petri_engine.clear_anomalies()
         self.petri_engine.reset()
+        
+        # Desarma as tags de controle do Gêmeo Digital (DT)
+        await self.write_tag("stopDT", False)
+        await self.write_tag("startDT", False)
         
         # 1. Configura a meta do contador CTU e zera contagem
         try:
@@ -332,6 +337,7 @@ class DigitalTwinConnector:
         except Exception:
             pass
 
+        await self.write_tag("stopDT", False)
         await self.write_tag("desligar", False)
         await self.write_tag("stop", True)
         for p in [f"p{i}" for i in range(2, 16)]:
@@ -340,8 +346,10 @@ class DigitalTwinConnector:
         await self.write_tag("p16", True)
 
         await self.write_tag("start", True)
+        await self.write_tag("startDT", True)
         await asyncio.sleep(0.3)
         await self.write_tag("start", False)
+        await self.write_tag("startDT", False)
 
     def inject_fault(self, fault_type: str):
         """Injeta uma falha no motor da Rede de Petri e aciona o protocolo de segurança de forma thread-safe."""

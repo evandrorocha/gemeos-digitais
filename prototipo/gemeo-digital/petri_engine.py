@@ -207,7 +207,7 @@ def create_initial_petri_net() -> RedePetri:
         "atLeftExit_P": ["t7"],
         "atRightEntry_P": ["t9"],
         "atRightExit_P": ["t10"],
-        "stop_P": ["t12"],
+        "stop_N": ["t12"],
         "reset_P": ["t14"]
     }
 

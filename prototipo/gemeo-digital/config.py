@@ -27,6 +27,7 @@ MAX_PRESENCE_TIME_SEC = float(os.getenv("MAX_PRESENCE_TIME_SEC", "8.0"))        
 # Tags Críticas Monitoradas na Linha
 CRITICAL_TAGS = [
     "start", "stop", "reset", "desligar",
+    "startDT", "stopDT",
     "palletSensor", "highSensor", "loaded", "alto",
     "conveyorEntry", "conveyorLeft", "conveyorRight",
     "transferLeft", "transferRight", "load",
