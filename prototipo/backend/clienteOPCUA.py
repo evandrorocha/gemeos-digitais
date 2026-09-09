@@ -56,7 +56,7 @@ eventos = {"start_P": ["t1"],
            "atLeftExit_P": ["t7"],
            "atRightEntry_P": ["t9"],
            "atRightExit_P": ["t10"],
-           "stop_P": ["t12"],
+           "stop_N": ["t12"],
            "reset_P": ["t14"]}
 
 variaveis = {"alto": 0}
@@ -87,6 +87,35 @@ class SubscriptionHandler:
         except Exception as e:
             print(f"Erro ao processar atualização: {e}")
         
+async def enviar_comando(tags_por_nome, tag, novo_valor):
+    """
+    Escreve um valor em uma tag OPC UA.
+
+    Args:
+        tags_por_nome: dicionário com nome da tag -> objeto Node.
+        tag: nome da tag no CODESYS.
+        novo_valor: valor a ser escrito.
+    """
+    node = tags_por_nome.get(tag)
+
+    if node is None:
+        raise ValueError(f"Tag '{tag}' não encontrada.")
+
+    try:
+        tipo = await node.read_data_type_as_variant_type()
+        valor = ua.DataValue(
+            ua.Variant(novo_valor, tipo)
+        )
+
+        await node.write_value(valor)
+
+        print(f"Comando enviado: {tag} = {novo_valor}")
+        return True
+
+    except Exception as erro:
+        print(f"Erro ao escrever na tag '{tag}': {erro}")
+        return False
+
 async def main():
 
     print("Conectando ao CODESYS OPC UA...")
@@ -128,9 +157,13 @@ async def main():
         print()
 
         tag_names = {}
+        tags_por_nome = {}
         for node in tags:
             browse_name = await node.read_browse_name()
+            nome = browse_name.Name
+
             tag_names[str(node.nodeid)] = browse_name.Name
+            tags_por_nome[nome] = node
 
         event_queue = asyncio.Queue()
         event_queue = asyncio.Queue(maxsize=100)
@@ -151,6 +184,10 @@ async def main():
 
         identificationStarted = False
 
+        # Iniciar valores das tags de escrita do servidor OPC UA
+        await enviar_comando(tags_por_nome, "stopDT", False)
+        await enviar_comando(tags_por_nome, "startDT", False)
+
         try:
             while True:
                 event_message = await event_queue.get()
@@ -158,16 +195,20 @@ async def main():
                 try:
                     # Apenas faz a verificação de eventos quando der start
                     if event_message == "start_P": identificationStarted = True
+                    # Desativa trigger da tag de escrita
+                    if event_message == "stopDT_P": 
+                        await enviar_comando(tags_por_nome, "stopDT", False)
+                    if event_message == "startDT_P": 
+                        await enviar_comando(tags_por_nome, "startDT", False)
 
                     if identificationStarted:
                         if event_message == "alto_P":
                             redeSortingByHeight.atualizar_variavel("alto", 1)
-                            print(redeSortingByHeight.variaveis["alto"])
                         elif event_message == "alto_N":
                             redeSortingByHeight.atualizar_variavel("alto", 0)
-                            print(redeSortingByHeight.variaveis["alto"])
                         elif event_message in eventos:
-                            print(redeSortingByHeight.processar_evento(event_message))
+                            if (not redeSortingByHeight.processar_evento(event_message)[0]):
+                                await enviar_comando(tags_por_nome, "stopDT", True)
 
                 finally:
                     event_queue.task_done()
