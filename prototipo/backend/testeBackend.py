@@ -108,8 +108,6 @@ async def enviar_comando(tags_por_nome, tag, novo_valor):
         )
 
         await node.write_value(valor)
-
-        print(f"Comando enviado: {tag} = {novo_valor}")
         return True
 
     except Exception as erro:
