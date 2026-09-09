@@ -92,10 +92,16 @@ class OPCUAService:
         if node is None:
             raise ValueError(f"Tag '{tag_name}' não encontrada.")
 
-        data_type = await node.read_data_type_as_variant_type()
-        data_value = ua.DataValue(ua.Variant(value, data_type))
+        try:
+            data_type = await node.read_data_type_as_variant_type()
+            data_value = ua.DataValue(ua.Variant(value, data_type))
 
-        await node.write_value(data_value)
+            await node.write_value(data_value)
+            return True
+
+        except Exception as erro:
+            print(f"Erro ao escrever na tag '{tag_name}': {erro}")
+            return False
 
     async def read_tag(self, tag_name):
         node = self.tags_por_nome.get(tag_name)
