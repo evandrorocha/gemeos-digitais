@@ -18,7 +18,7 @@ services:
       - OPCUA_SERVER_URL=opc.tcp://host.docker.internal:4840
       - DEBOUNCE_TIME_MS=50
       - MAX_PRESENCE_TIME_SEC=8.0
-      - TIMEOUT_CONVEYOR_ENTRY_SEC=15.0
+      - TIMEOUT_CONVEYOR_ENTRY_SEC=5.0
       - TIMEOUT_TRANSFER_SEC=3.5
     extra_hosts:
       # Mapeia host.docker.internal para o IP do computador local

@@ -20,7 +20,7 @@ DEBOUNCE_TIME_MS = int(os.getenv("DEBOUNCE_TIME_MS", "50"))  # 50ms para elimina
 SAMPLING_RATE_MS = int(os.getenv("SAMPLING_RATE_MS", "100")) # Taxa de subscrição OPC UA
 
 # Parâmetros de Temporização Calibrados com a Física da Planta Factory I/O (com margem segura para gravação OBS)
-TIMEOUT_CONVEYOR_ENTRY_SEC = float(os.getenv("TIMEOUT_CONVEYOR_ENTRY_SEC", "15.0")) # Viagem na esteira
+TIMEOUT_CONVEYOR_ENTRY_SEC = float(os.getenv("TIMEOUT_CONVEYOR_ENTRY_SEC", "5.0")) # Viagem na esteira (calibrado para 5.0s)
 TIMEOUT_TRANSFER_SEC = float(os.getenv("TIMEOUT_TRANSFER_SEC", "3.5"))              # Desvio na mesa (calibrado para 3.5s)
 MAX_PRESENCE_TIME_SEC = float(os.getenv("MAX_PRESENCE_TIME_SEC", "8.0"))            # Passagem no sensor óptico
 

@@ -125,31 +125,26 @@ def test_sensor_stuck_on():
     # Força passagem de tempo no timer
     engine._sensor_high_start_time["palletSensor"] = time.time() - 10.0
 
+    # Verificação de timeout/stuck desativada a pedido do usuário
     anomaly = engine.check_anomalies()
-    assert anomaly is not None
-    assert anomaly.anomaly_type == "SENSOR_STUCK_ON"
-    assert "palletSensor" in anomaly.component
-    print(f"✅ Falha Stuck ON capturada: {anomaly.message}")
-    print("✅ TESTE 4 PASSOU COM SUCESSO!\n")
+    assert anomaly is None  # Timeouts desativados por hora
+    print("✅ TESTE 4 PASSOU: Timeouts de tempo desativados conforme solicitado!\n")
 
 
 def test_transit_timeout():
-    print("=== TESTE 5: Timeout de Transporte na Esteira de Entrada (loaded não aciona) ===")
+    print("=== TESTE 5: Timeout de Transporte na Esteira de Entrada (Desativado) ===")
     engine = PetriNetEngine()
     engine.update_from_sanitized_event(make_event("start", True))
     engine.update_from_sanitized_event(make_event("conveyorEntry", True))
     engine.update_from_sanitized_event(make_event("palletSensor", True))
     engine.update_from_sanitized_event(make_event("palletSensor", False))
 
-    # Força passagem de tempo em trânsito sem atingir loaded (> 15s)
+    # Força passagem de tempo em trânsito sem atingir loaded
     engine._box_in_transit_start_time = time.time() - 20.0
 
     anomaly = engine.check_anomalies()
-    assert anomaly is not None
-    assert anomaly.anomaly_type == "TRANSPORT_TIMEOUT"
-    assert "loaded" in anomaly.component
-    print(f"✅ Timeout de Transporte capturado: {anomaly.message}")
-    print("✅ TESTE 5 PASSOU COM SUCESSO!\n")
+    assert anomaly is None  # Timeouts desativados por hora
+    print("✅ TESTE 5 PASSOU: Timeouts de transporte desativados conforme solicitado!\n")
 
 
 def test_reset_cleans_phantom_tokens():
@@ -178,20 +173,18 @@ def test_auto_recovery():
     print("=== TESTE 7: Auto-Recuperação quando o Sensor Volta a Funcionar ===")
     engine = PetriNetEngine()
     engine.update_from_sanitized_event(make_event("start", True))
-    engine.update_from_sanitized_event(make_event("palletSensor", True))
 
-    # 1. Simula sensor Stuck ON
-    engine._sensor_high_start_time["palletSensor"] = time.time() - 10.0
-    engine.check_anomalies()
+    # 1. Simula inconsistência óptica
+    engine.update_from_sanitized_event(make_event("highSensor", True))
     assert engine.get_status_summary()["health_status"] == "CRITICAL_FAULT"
 
     # 2. Usuário desfaz a falha no Factory I/O (sensor vai para 0)
-    engine.update_from_sanitized_event(make_event("palletSensor", False))
+    engine.update_from_sanitized_event(make_event("highSensor", False))
     summary = engine.get_status_summary()
     assert summary["health_status"] == "HEALTHY"
     assert len(summary["active_anomalies"]) == 0
     assert len(summary["anomaly_history"]) > 0  # Permanece no histórico para auditoria!
-    print("✅ Alerta de Stuck ON removido automaticamente quando o sensor voltou para 0!")
+    print("✅ Alerta removido automaticamente quando o sensor voltou para 0!")
 
     # 3. Simula botão RESET físico no Factory I/O (reset_P)
     engine.update_from_sanitized_event(make_event("reset", True))
