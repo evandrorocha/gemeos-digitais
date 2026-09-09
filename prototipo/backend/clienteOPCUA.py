@@ -15,7 +15,7 @@ PLC_PRG_NODE = (
 lugares = {"p1": 1, "p2": 0, "p3": 0, "p4": 0, 
            "p5": 0, "p6": 0, "p7": 0, "p8": 0, 
            "p9": 0, "p10": 0, "p11": 0, "p12": 0, 
-           "p13": 0, "p16": 1} # "p14": 1, "p15": 0
+           "p13": 0, "p16": 1}
 
 lugares2transicoes = {"p1": ["t1"], 
                         "p2": ["t2"],
@@ -30,8 +30,6 @@ lugares2transicoes = {"p1": ["t1"],
                         "p11": ["t12", "t14"],
                         "p12": ["t13"],
                         "p13": ["t15"],
-                        # "p14": ["t16"],
-                        # "p15": ["t17"],
                         "p16": ["t3"]}
 
 transicoes2lugares = {"t1": ["p2", "p11"],
@@ -50,17 +48,14 @@ transicoes2lugares = {"t1": ["p2", "p11"],
                         "t13": ["p1"],
                         "t14": ["p13"],
                         "t15": ["p1"],}
-                        # "t16": ["p15"],
-                        # "t17": ["p14"]
 
 eventos = {"start_P": ["t1"], 
            "palletSensor_P": ["t2"],
            "loaded_P": ["t4"],
            "atLeftEntry_P": ["t6"],
            "atLeftExit_P": ["t7"],
-           "atRightEntry_P": ["t9"], #, "t17"
+           "atRightEntry_P": ["t9"],
            "atRightExit_P": ["t10"],
-        #    "highSensor": ["t16"],
            "stop_P": ["t12"],
            "reset_P": ["t14"]}
 
@@ -154,22 +149,25 @@ async def main():
         print("Monitoramento iniciado.")
         print("Aguardando alterações...\n")
 
+        identificationStarted = False
+
         try:
             while True:
                 event_message = await event_queue.get()
 
                 try:
+                    # Apenas faz a verificação de eventos quando der start
+                    if event_message == "start_P": identificationStarted = True
 
-                    if event_message == "alto_P":
-                        redeSortingByHeight.atualizar_variavel("alto", 1)
-                        print(redeSortingByHeight.variaveis["alto"])
-                    elif event_message == "alto_N":
-                        redeSortingByHeight.atualizar_variavel("alto", 0)
-                        print(redeSortingByHeight.variaveis["alto"])
-                    elif event_message in eventos:
-                        print(redeSortingByHeight.processar_evento(event_message))
-
-                    redeSortingByHeight.mostrar_estados()
+                    if identificationStarted:
+                        if event_message == "alto_P":
+                            redeSortingByHeight.atualizar_variavel("alto", 1)
+                            print(redeSortingByHeight.variaveis["alto"])
+                        elif event_message == "alto_N":
+                            redeSortingByHeight.atualizar_variavel("alto", 0)
+                            print(redeSortingByHeight.variaveis["alto"])
+                        elif event_message in eventos:
+                            print(redeSortingByHeight.processar_evento(event_message))
 
                 finally:
                     event_queue.task_done()
