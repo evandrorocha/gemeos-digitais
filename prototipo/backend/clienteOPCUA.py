@@ -209,7 +209,6 @@ async def main():
                         elif event_message in eventos:
                             if (not redeSortingByHeight.processar_evento(event_message)[0]):
                                 await enviar_comando(tags_por_nome, "stopDT", True)
-
                 finally:
                     event_queue.task_done()
 
