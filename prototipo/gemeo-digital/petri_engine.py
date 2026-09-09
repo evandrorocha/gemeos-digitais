@@ -355,10 +355,6 @@ class PetriNetEngine:
             if sensor_name in self.MONITORED_SENSORS or sensor_name == "stop":
                 self.auto_clear_anomaly_for_component(sensor_name)
 
-        # 2. Se a inconsistência óptica de altura foi corrigida:
-        if not self.tags.get("highSensor") or self.tags.get("palletSensor"):
-            self.auto_clear_anomaly_for_component("highSensor")
-
         # 3. Se um sensor que estava com Stuck OFF ou Timeout voltou a emitir pulso (_P):
         if edge_event and edge_event.endswith("_P"):
             sensor_name = edge_event[:-2]
@@ -367,7 +363,6 @@ class PetriNetEngine:
         # 4. Ao iniciar novo ciclo (start_P) ou reset (reset_P), limpa anomalias
         if edge_event in ["start_P", "reset_P"]:
             self.clear_anomalies()
-            self.auto_clear_anomaly_for_component("highSensor")
 
         # Rastreamento da rota de classificação ativa (Esquerda = Baixa, Direita = Alta)
         if edge_event == "transferLeft_P" or (tag == "transferLeft" and val):
@@ -545,35 +540,10 @@ class PetriNetEngine:
 
     def check_anomalies(self) -> Optional[AnomalyReport]:
         """
-        Aplica regras contínuas de tempo real (sensores travados e timeouts de transporte).
-        Pode ser invocado periodicamente mesmo quando nenhum evento novo chega do CLP.
+        Verificações periódicas de anomalias.
+        Atualmente todas as regras de timeout e inconsistência customizadas foram removidas,
+        confiando exclusivamente nas transições formais da Rede de Petri do backend.
         """
-        now = time.time()
-        now_iso = datetime.now(timezone.utc).isoformat()
-        current_active = [p for p, v in self.petri_net.estados.items() if v > 0]
-
-        # ---------------------------------------------------------------------
-        # REGRA 1: Inconsistência Óptica Física (highSensor ON sem palletSensor)
-        # ---------------------------------------------------------------------
-        # No Factory I/O, a cortina óptica de altura está acima do sensor de presença.
-        # Uma caixa não pode cortar o feixe superior sem cortar o feixe inferior.
-        if self.tags.get("highSensor") and not self.tags.get("palletSensor"):
-            anomaly = AnomalyReport(
-                anomaly_id=f"ANOM_OPTICAL_INCONSISTENCY_{int(now)}",
-                anomaly_type="SENSOR_STUCK_ON",
-                severity="CRITICAL",
-                component="highSensor (Sensor de Altura)",
-                message="Inconsistência Óptica: Sensor de topo (highSensor) acionado sem detecção no feixe inferior (palletSensor). Sensor de altura em falha Stuck ON!",
-                timestamp_iso=now_iso,
-                timestamp_unix=now,
-                current_marking=current_active,
-                suggested_action="Remova a falha Fail ON do sensor 'highSensor' no Factory I/O."
-            )
-            return self._register_anomaly(anomaly)
-
-        # Controles de timeout e temporização (Regras 2 a 7) temporariamente desativados
-        # a pedido do usuário para confiar puramente nas transições de estado da Rede de Petri.
-
         return None
 
     def inject_synthetic_anomaly(self, anomaly_type: str) -> AnomalyReport:

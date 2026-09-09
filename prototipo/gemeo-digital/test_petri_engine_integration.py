@@ -103,16 +103,16 @@ def test_pallet_sensor_stuck_off():
 
 
 def test_optical_inconsistency():
-    print("=== TESTE 3: Inconsistência Óptica (highSensor ON sem palletSensor) ===")
+    print("=== TESTE 3: Regras Puras da Rede de Petri (highSensor isolado não gera anomalia) ===")
     engine = PetriNetEngine()
     engine.update_from_sanitized_event(make_event("start", True))
 
-    # highSensor aciona sozinho
+    # highSensor aciona sozinho: não deve disparar anomalia nas regras formais da Rede de Petri
     anomaly = engine.update_from_sanitized_event(make_event("highSensor", True))
     summary = engine.get_status_summary()
-    assert summary["health_status"] == "CRITICAL_FAULT"
-    assert "highSensor" in summary["active_anomalies"][0]["component"]
-    print(f"✅ Inconsistência capturada: {summary['active_anomalies'][0]['message']}")
+    assert summary["health_status"] == "HEALTHY"
+    assert len(summary["active_anomalies"]) == 0
+    print("✅ highSensor isolado ignorado pela Rede de Petri (regras puras ativas)")
     print("✅ TESTE 3 PASSOU COM SUCESSO!\n")
 
 
@@ -174,17 +174,9 @@ def test_auto_recovery():
     engine = PetriNetEngine()
     engine.update_from_sanitized_event(make_event("start", True))
 
-    # 1. Simula inconsistência óptica
-    engine.update_from_sanitized_event(make_event("highSensor", True))
+    # 1. Simula violação de transição da Rede de Petri (loaded sem palletSensor)
+    engine.update_from_sanitized_event(make_event("loaded", True))
     assert engine.get_status_summary()["health_status"] == "CRITICAL_FAULT"
-
-    # 2. Usuário desfaz a falha no Factory I/O (sensor vai para 0)
-    engine.update_from_sanitized_event(make_event("highSensor", False))
-    summary = engine.get_status_summary()
-    assert summary["health_status"] == "HEALTHY"
-    assert len(summary["active_anomalies"]) == 0
-    assert len(summary["anomaly_history"]) > 0  # Permanece no histórico para auditoria!
-    print("✅ Alerta removido automaticamente quando o sensor voltou para 0!")
 
     # 3. Simula botão RESET físico no Factory I/O (reset_P)
     engine.update_from_sanitized_event(make_event("reset", True))
