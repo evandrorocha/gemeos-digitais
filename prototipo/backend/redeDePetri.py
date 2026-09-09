@@ -123,7 +123,7 @@ class RedePetri:
         # 1. Verificar o evento
         if evento not in self.eventos:
             return False, (
-                f"Falha: evento '{evento}' nao esta cadastrado."
+                f"Evento '{evento}' nao esta cadastrado."
             )
 
         transicoes_evento = self.eventos[evento]
@@ -141,8 +141,7 @@ class RedePetri:
         # 4. Se nenhuma transição estiver habilitada
         if not transicoes_escolhidas:
             return False, (
-                f"Falha: nenhuma transicao associada ao evento "
-                f"'{evento}' esta habilitada."
+                f"Nenhuma transicao associada ao evento '{evento}' esta habilitada."
             )
 
         # 5. Disparar as transições associadas
@@ -159,9 +158,7 @@ class RedePetri:
                     self.estados[lugar] += 1
 
             mensagens.append(
-                f"Evento '{evento}': "
-                f"transicao '{transicao}' disparada "
-                f"a partir de '{lugares_origem}'."
+                f"Evento '{evento}': transicao '{transicao}' disparada a partir de '{lugares_origem}'."
             )
 
         # 6. Disparar automaticamente as transições lambda
@@ -196,14 +193,16 @@ class RedePetri:
                     self.estados[lugar] += 1
 
             mensagens.append(
-                f"Transicao lambda '{transicao_lambda}' "
-                f"disparada a partir de '{lugares_origem}'."
+                f"Transicao lambda '{transicao_lambda}' disparada a partir de '{lugares_origem}'."
             )
 
-        return True, "\n".join(mensagens)
+        return True, mensagens
 
     # VISUALIZAÇÃO
     def mostrar_estados(self):
 
         print("Estados atuais:")
         print(" | ".join(f"{lugar}: {fichas}" for lugar, fichas in self.estados.items()))
+
+    def get_estados(self):
+        return self.estados

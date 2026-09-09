@@ -11,8 +11,6 @@ PLC_PRG_NODE = (
     "Application.PLC_PRG"
 )
 
-startSystemIdentification = False
-
 # Rede de Petri
 lugares = {"p1": 1, "p2": 0, "p3": 0, "p4": 0, 
            "p5": 0, "p6": 0, "p7": 0, "p8": 0, 
@@ -151,6 +149,8 @@ async def main():
         print("Monitoramento iniciado.")
         print("Aguardando alterações...\n")
 
+        identificationStarted = False
+
         try:
             while True:
                 event_message = await event_queue.get()
@@ -168,8 +168,6 @@ async def main():
                             print(redeSortingByHeight.variaveis["alto"])
                         elif event_message in eventos:
                             print(redeSortingByHeight.processar_evento(event_message))
-
-                        redeSortingByHeight.mostrar_estados()
 
                 finally:
                     event_queue.task_done()
