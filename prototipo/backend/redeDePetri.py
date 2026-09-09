@@ -122,9 +122,7 @@ class RedePetri:
 
         # 1. Verificar o evento
         if evento not in self.eventos:
-            return False, (
-                f"Evento '{evento}' nao esta cadastrado."
-            )
+            return False, [f"Evento '{evento}' nao esta cadastrado."]
 
         transicoes_evento = self.eventos[evento]
 
@@ -140,9 +138,7 @@ class RedePetri:
 
         # 4. Se nenhuma transição estiver habilitada
         if not transicoes_escolhidas:
-            return False, (
-                f"Nenhuma transicao associada ao evento '{evento}' esta habilitada."
-            )
+            return False, [f"Nenhuma transicao associada ao evento '{evento}' esta habilitada."]
 
         # 5. Disparar as transições associadas
         for transicao in transicoes_escolhidas:
