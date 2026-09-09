@@ -6,6 +6,10 @@ alimentação do motor de Rede de Petri, atualização do AAS e envio de comando
 
 import asyncio
 import logging
+import os
+from pathlib import Path
+import sys
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Callable, Any
 from asyncua import Client, Node, ua
@@ -14,56 +18,44 @@ from data_sanitizer import DataSanitizer, SanitizedEvent
 from petri_engine import PetriNetEngine, AnomalyReport
 from aas_model import AssetAdministrationShell
 
+# Importação da classe OPCUAService desenvolvida pelo Caio no backend
+BACKEND_DIR = Path(__file__).resolve().parent.parent / "backend"
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.append(str(BACKEND_DIR))
+
+from opcuaService import OPCUAService
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("OPC_CONNECTOR")
-
-
-class SubscriptionHandler:
-    """Recebe as notificações de DataChange do servidor OPC UA."""
-
-    def __init__(self, connector: "DigitalTwinConnector"):
-        self.connector = connector
-
-    def datachange_notification(self, node: Node, val: Any, data: Any):
-        try:
-            # Extrai o nome da tag do cache ou do NodeId
-            tag_name = self.connector._node_id_to_name.get(str(node.nodeid))
-            if not tag_name:
-                node_str = str(node.nodeid.Identifier)
-                tag_name = node_str.split(".")[-1]
-
-            # Processa no conector do gêmeo digital
-            self.connector.process_incoming_tag(tag_name, val)
-        except Exception as e:
-            logger.error(f"Erro ao processar datachange da tag: {e}")
-
-    def status_change_notification(self, status: Any):
-        logger.warning(f"OPC UA Status Change recebido: {status}")
-        self.connector.is_connected = False
-
-    def event_notification(self, event: Any):
-        pass
 
 
 class DigitalTwinConnector:
     """
     Controlador central do Gêmeo Digital:
-    Conecta ao CLP, sanitiza dados, executa a Rede de Petri e atualiza o AAS.
+    Utiliza a camada de transporte OPCUAService do Caio, sanitiza dados,
+    executa a Rede de Petri e atualiza o modelo AAS.
     """
 
     def __init__(self, url: str = OPCUA_SERVER_URL):
         self.url = url
-        self.client: Optional[Client] = None
-        self.sanitizer = DataSanitizer()
         self.petri_engine = PetriNetEngine()
+        self.sanitizer = DataSanitizer()
         self.aas = AssetAdministrationShell()
         self.is_connected = False
-        self._subscription = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._nodes_cache: Dict[str, Node] = {}
-        self._node_id_to_name: Dict[str, str] = {}
         self._monitor_task: Optional[asyncio.Task] = None
         self.on_state_change_callbacks: List[Callable[[Dict[str, Any]], None]] = []
+
+        # Instancia o serviço de transporte OPC UA oficial do backend (desenvolvido pelo Caio)
+        self.service = OPCUAService(
+            rede_petri=self.petri_engine.petri_net,
+            url=self.url,
+            plc_node=PLC_PRG_NODE_ID,
+            on_datachange=self.process_incoming_tag
+        )
+        self.client: Optional[Client] = None
+        self._nodes_cache: Dict[str, Node] = {}
+        self._node_id_to_name: Dict[str, str] = {}
 
     def register_callback(self, callback: Callable[[Dict[str, Any]], None]):
         """Registra um callback para notificar interfaces externas (ex: Dashboard)."""
@@ -108,48 +100,33 @@ class DigitalTwinConnector:
                 logger.error(f"Erro em callback de estado: {e}")
 
     async def reconnect(self):
-        """Restabelece a conexão limpa com o servidor OPC UA e reativa a subscrição."""
-        if self.client:
+        """Restabelece a conexão limpa com o servidor OPC UA via OPCUAService."""
+        if self.service:
             try:
-                await self.client.disconnect()
+                await self.service.close()
             except Exception:
                 pass
         self.is_connected = False
         self._nodes_cache.clear()
         self._node_id_to_name.clear()
 
-        logger.info(f"Conectando ao servidor OPC UA em {self.url}...")
-        self.client = Client(url=self.url)
-        await self.client.connect()
+        logger.info(f"Conectando ao servidor OPC UA em {self.url} via OPCUAService...")
+        await self.service.connect()
         self.is_connected = True
-        logger.info("✅ Conectado com sucesso ao CODESYS OPC UA!")
+        self.client = self.service.client
+        self._nodes_cache = self.service.tags_por_nome
+        self._node_id_to_name = self.service.tag_names
+        logger.info(f"✅ Conectado com sucesso via OPCUAService! {len(self._nodes_cache)} tags monitoradas.")
 
-        # Obtém o nó do PLC_PRG e todas as variáveis
-        plc_node = self.client.get_node(PLC_PRG_NODE_ID)
-        children = await plc_node.get_children()
-
-        tags_to_subscribe = []
         initial_baseline = {}
-        for child in children:
-            nclass = await child.read_node_class()
-            if nclass == ua.NodeClass.Variable:
-                bname = await child.read_browse_name()
-                self._nodes_cache[bname.Name] = child
-                self._node_id_to_name[str(child.nodeid)] = bname.Name
-                tags_to_subscribe.append(child)
-                try:
-                    initial_baseline[bname.Name] = await child.read_value()
-                except Exception:
-                    pass
+        for tag_name, node in self._nodes_cache.items():
+            try:
+                initial_baseline[tag_name] = await node.read_value()
+            except Exception:
+                pass
 
         self.petri_engine.set_baseline_tags(initial_baseline)
-        logger.info(f"Cache criado com {len(self._nodes_cache)} variáveis (baseline carregado).")
-
-        # Cria a subscrição
-        handler = SubscriptionHandler(self)
-        self._subscription = await self.client.create_subscription(SAMPLING_RATE_MS, handler)
-        await self._subscription.subscribe_data_change(tags_to_subscribe)
-        logger.info(f"Subscrição ativada para {len(tags_to_subscribe)} tags.")
+        logger.info(f"Cache e baseline inicial sincronizados ({len(initial_baseline)} variáveis).")
 
     async def connect_and_subscribe(self):
         """Estabelece a conexão OPC UA e inicia a subscrição assíncrona."""
@@ -234,35 +211,45 @@ class DigitalTwinConnector:
             logger.warning(f"Aviso na auto-inicialização do CLP: {e}")
 
     async def write_tag(self, tag_name: str, value: Any):
-        """Escreve um valor em uma tag no CODESYS via OPC UA."""
-        if not self.is_connected or not self.client:
+        """Escreve um valor em uma tag no CODESYS via OPCUAService."""
+        if not self.is_connected or not self.service:
             logger.error("Tentativa de escrita sem conexão ativa!")
             return False
 
         try:
+            # Tenta escrever diretamente pelo OPCUAService do Caio
+            if tag_name in self.service.tags_por_nome:
+                success = await self.service.write_tag(tag_name, value)
+                if success:
+                    logger.info(f"Comando gravado com sucesso: {tag_name} = {value}")
+                return success
+
+            # Fallback para nós aninhados (ex: CTU_0.RESET)
             node = self._nodes_cache.get(tag_name)
-            if not node:
-                nid = f"{PLC_PRG_NODE_ID}.{tag_name}"
+            if not node and self.client:
+                nid = f"{self.service.plc_node_id}.{tag_name}"
                 node = self.client.get_node(nid)
                 self._nodes_cache[tag_name] = node
 
-            # Se for booleano
-            if isinstance(value, bool):
-                dv = ua.DataValue(ua.Variant(value, ua.VariantType.Boolean))
-            elif isinstance(value, int):
-                dv = ua.DataValue(ua.Variant(value, ua.VariantType.Int16))
-            else:
-                dv = ua.DataValue(ua.Variant(value))
-
-            await node.write_value(dv)
-            logger.info(f"Comando gravado com sucesso: {tag_name} = {value}")
-            return True
+            if node:
+                data_type = await node.read_data_type_as_variant_type()
+                data_value = ua.DataValue(ua.Variant(value, data_type))
+                await node.write_value(data_value)
+                logger.info(f"Comando gravado com sucesso: {tag_name} = {value}")
+                return True
+            return False
         except Exception as e:
             logger.error(f"Erro ao escrever na tag {tag_name}: {e}")
             err_str = str(e).lower()
             if "disconnect" in err_str or "connection" in err_str or "closed" in err_str:
                 self.is_connected = False
             return False
+
+    async def read_tag(self, tag_name: str):
+        """Lê o valor de uma tag utilizando o OPCUAService."""
+        if not self.service:
+            return None
+        return await self.service.read_tag(tag_name)
 
     async def emergency_stop(self, reason: str = "Parada de Emergência acionada pelo Gêmeo Digital"):
         """Envia o comando de parada imediata para o CLP desligando todos os motores na hora."""

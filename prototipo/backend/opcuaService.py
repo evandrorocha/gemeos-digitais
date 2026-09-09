@@ -1,13 +1,14 @@
+import os
 import asyncio
 from asyncua import Client, ua
 from redeDePetri import RedePetri
 
 
-URL = "opc.tcp://127.0.0.1:4840"
+URL = os.getenv("OPCUA_SERVER_URL", "opc.tcp://127.0.0.1:4840")
 
-PLC_PRG_NODE = (
-    "ns=4;s=|var|CODESYS Control Win V3."
-    "Application.PLC_PRG"
+PLC_PRG_NODE = os.getenv(
+    "PLC_PRG_NODE_ID",
+    "ns=4;s=|var|CODESYS Control Win V3 x64.Application.PLC_PRG"
 )
 
 EVENTOS = {
@@ -24,28 +25,32 @@ EVENTOS = {
 
 
 class SubscriptionHandler:
-    def __init__(self, tag_names, event_queue):
+    def __init__(self, tag_names, event_queue, on_datachange=None):
         self.tag_names = tag_names
         self.event_queue = event_queue
+        self.on_datachange = on_datachange
 
     def datachange_notification(self, node, value, data):
         try:
             tag_name = self.tag_names.get(str(node.nodeid), str(node.nodeid))
 
-            suffix = "P" if value else "N"
-            event = f"{tag_name}_{suffix}"
-
-            self.event_queue.put_nowait(event)
+            if self.on_datachange is not None:
+                self.on_datachange(tag_name, value)
+            else:
+                suffix = "P" if value else "N"
+                event = f"{tag_name}_{suffix}"
+                self.event_queue.put_nowait(event)
 
         except Exception as error:
             print(f"Erro na notificação OPC UA: {error}")
 
 
 class OPCUAService:
-    def __init__(self, rede_petri, url=URL, plc_node=PLC_PRG_NODE):
+    def __init__(self, rede_petri, url=URL, plc_node=PLC_PRG_NODE, on_datachange=None):
         self.rede_petri = rede_petri
         self.url = url
         self.plc_node_id = plc_node
+        self.on_datachange = on_datachange
 
         self.client = None
         self.subscription = None
@@ -62,8 +67,23 @@ class OPCUAService:
         self.client = Client(url=self.url)
         await self.client.connect()
 
-        plc_node = self.client.get_node(self.plc_node_id)
-        children = await plc_node.get_children()
+        candidate_nodes = [
+            self.plc_node_id,
+            self.plc_node_id.replace("Control Win V3.", "Control Win V3 x64."),
+            self.plc_node_id.replace("Control Win V3 x64.", "Control Win V3.")
+        ]
+
+        children = []
+        for candidate in candidate_nodes:
+            try:
+                node = self.client.get_node(candidate)
+                ch = await node.get_children()
+                if ch:
+                    self.plc_node_id = candidate
+                    children = ch
+                    break
+            except Exception:
+                continue
 
         for node in children:
             node_class = await node.read_node_class()
@@ -78,7 +98,7 @@ class OPCUAService:
             self.tags_por_nome[tag_name] = node
             self.tag_names[str(node.nodeid)] = tag_name
 
-        handler = SubscriptionHandler(self.tag_names, self.event_queue)
+        handler = SubscriptionHandler(self.tag_names, self.event_queue, on_datachange=self.on_datachange)
 
         self.subscription = await self.client.create_subscription(100, handler)
 
