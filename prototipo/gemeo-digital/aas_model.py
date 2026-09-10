@@ -12,6 +12,7 @@ a camada espacial (BIM) do ativo fisico.
 from datetime import datetime, timezone
 from typing import Dict, Any, List
 import os
+import io
 
 from basyx.aas import model
 from basyx.aas.adapter.json import object_store_to_json
@@ -82,6 +83,8 @@ class AssetAdministrationShell:
         self._prop_pallet_sensor = model.Property("PalletSensor_State", bool, False)
         self._prop_high_sensor = model.Property("HighSensor_State", bool, False)
         self._prop_loaded = model.Property("Loaded_State", bool, False)
+        self._prop_start_dt = model.Property("StartDT_Command", bool, False)
+        self._prop_stop_dt = model.Property("StopDT_Interlock", bool, False)
         self._prop_boxes_total = model.Property("BoxesSortedTotal", int, 0)
         self._prop_last_update = model.Property("LastUpdateTimestamp", str, datetime.now(timezone.utc).isoformat())
 
@@ -93,6 +96,7 @@ class AssetAdministrationShell:
                 self._prop_entry, self._prop_left, self._prop_right,
                 self._prop_transfer_l, self._prop_transfer_r,
                 self._prop_pallet_sensor, self._prop_high_sensor, self._prop_loaded,
+                self._prop_start_dt, self._prop_stop_dt,
                 self._prop_boxes_total, self._prop_last_update,
             ],
         )
@@ -211,6 +215,8 @@ class AssetAdministrationShell:
         self._prop_pallet_sensor.value = bool(tags.get("palletSensor", False))
         self._prop_high_sensor.value = bool(tags.get("highSensor", False))
         self._prop_loaded.value = bool(tags.get("loaded", False))
+        self._prop_start_dt.value = bool(tags.get("startDT", False))
+        self._prop_stop_dt.value = bool(tags.get("stopDT", False))
         self._prop_boxes_total.value = int(tags.get("contador", 0))
         self._prop_last_update.value = now_iso
 
@@ -254,3 +260,20 @@ class AssetAdministrationShell:
     def to_json_string(self, indent: int = 2) -> str:
         """Gera o arquivo JSON padronizado do AAS (compativel com BaSyx Submodel Repository)."""
         return json.dumps(self.to_basyx_dict(), indent=indent, ensure_ascii=False)
+
+    def to_aasx_bytes(self) -> bytes:
+        """Gera o pacote binario oficial AASX (.aasx) compativel com o AASX Package Explorer."""
+        from basyx.aas.adapter import aasx
+        store = model.DictIdentifiableStore([self.shell, *self._submodels])
+        file_store = aasx.DictSupplementaryFileContainer()
+        bio = io.BytesIO()
+        with aasx.AASXWriter(bio) as writer:
+            writer.write_aas(aas_ids=[self.shell.id], object_store=store, file_store=file_store)
+        return bio.getvalue()
+
+    def save_aasx_file(self, file_path: str = "SortingByHeight_AAS.aasx") -> str:
+        """Salva o pacote .aasx em disco."""
+        data = self.to_aasx_bytes()
+        with open(file_path, "wb") as f:
+            f.write(data)
+        return file_path
