@@ -154,7 +154,7 @@ class OPCUAService:
         return await node.read_value()
 
     async def process_event(self, event):
-        if event in ("start_P", "startDT_P"):
+        if event == "start_P" or event == "startDT_P":
             self.identification_started = True
 
         if event == "stopDT_P":
