@@ -127,25 +127,45 @@ with st.sidebar:
     st.title("Painel de Controle")
     st.caption("Controle Supervisório da Planta")
 
+    # Indicador dinâmico de status da conexão OPC UA
+    @st.fragment(run_every="1s")
+    def render_sidebar_status():
+        if dt.is_connected:
+            st.success("🟢 OPC UA Conectado (CLP)", icon="⚡")
+        else:
+            st.warning("🟡 Reconectando ao CLP...", icon="⏳")
+
+    render_sidebar_status()
+
     st.markdown("---")
     st.subheader("🎮 Comandos do Operador")
     
     col_c1, col_c2 = st.columns(2)
     with col_c1:
         if st.button("▶️ START", use_container_width=True, type="primary"):
-            service.execute_async(dt.start_plant())
-            st.toast("Comando START enviado para o CLP!", icon="🚀")
+            if dt.is_connected:
+                service.execute_async(dt.start_plant())
+                st.toast("Comando START enviado para o CLP!", icon="🚀")
+            else:
+                st.toast("Aguardando reconexão com o CLP...", icon="⏳")
 
     with col_c2:
         if st.button("🔄 RESET", use_container_width=True):
-            service.execute_async(dt.reset_plant())
+            if dt.is_connected:
+                service.execute_async(dt.reset_plant())
+            else:
+                dt.petri_engine.clear_anomalies()
+                dt.petri_engine.reset()
             st.toast("Comando RESET enviado! Falhas limpas.", icon="🔄")
             st.rerun()
 
     col_e1, col_e2 = st.columns(2)
     with col_e1:
         if st.button("🛑 PARADA EMERG.", use_container_width=True):
-            service.execute_async(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"))
+            if dt.is_connected:
+                service.execute_async(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"))
+            else:
+                dt.petri_engine.inject_synthetic_anomaly("emergency_stop")
             st.toast("PARADA DE EMERGÊNCIA ATIVADA!", icon="🛑")
             st.rerun()
     with col_e2:
@@ -156,7 +176,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.caption("Padrão: ISO/IEC 30173 & ISO 23247")
-    st.caption("Protocolo: OPC UA @ 127.0.0.1:4840")
+    st.caption(f"Protocolo: OPC UA ({dt.url})")
 
 
 # =============================================================================
@@ -181,6 +201,10 @@ def render_live_dashboard():
     caixas_dir = petri.get("caixas_direita", 0)
     caixas_tot = petri.get("caixas_total", caixas_esq + caixas_dir)
 
+    # Banner de aviso quando desconectado do CLP
+    if not state.get("is_connected", False):
+        st.warning("⏳ **Conexão com o CLP (CODESYS) em processo de reconexão automática...** O painel se recupera automaticamente assim que o sinal OPC UA for restabelecido.", icon="⚠️")
+
     # Banner de Alerta Crítico se houver falha
     if health == "CRITICAL_FAULT":
         col_b1, col_b2 = st.columns([5, 1])
@@ -198,46 +222,34 @@ def render_live_dashboard():
             st.write("")
             st.write("")
             if st.button("🔄 RESET / LIMPAR", key="btn_reset_banner", use_container_width=True, type="primary"):
-                service.execute_async(dt.reset_plant())
+                if dt.is_connected:
+                    service.execute_async(dt.reset_plant())
+                else:
+                    dt.petri_engine.clear_anomalies()
+                    dt.petri_engine.reset()
                 st.toast("Linha resetada e falhas limpas!", icon="🔄")
                 st.rerun()
 
     # -------------------------------------------------------------------------
-    # CARDS DE MÉTRICAS (KPIs)
+    # CARDS DE MÉTRICAS OPERACIONAIS
     # -------------------------------------------------------------------------
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
 
     with col1:
         cls_status = "status-critical" if health == "CRITICAL_FAULT" else "status-healthy"
         txt_status = "🔴 PARADA DE EMERGÊNCIA" if health == "CRITICAL_FAULT" else "🟢 OPERACIONAL"
         st.markdown(f"""
         <div class="metric-card">
-            <div style="color: #9ca3af; font-size: 0.9rem;">STATUS DE SAÚDE</div>
+            <div style="color: #9ca3af; font-size: 0.9rem;">STATUS DE SAÚDE DA PLANTA</div>
             <div class="{cls_status}">{txt_status}</div>
         </div>
         """, unsafe_allow_html=True)
 
     with col2:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style="color: #9ca3af; font-size: 0.9rem;">QUALIDADE DOS DADOS (ISO 30173)</div>
-            <div style="color: #60a5fa; font-size: 1.4rem; font-weight: bold;">{sanitizer['data_quality_percentage']}%</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown(f"""
-        <div class="metric-card">
-            <div style="color: #9ca3af; font-size: 0.9rem;">EVENTOS SANITIZADOS</div>
-            <div style="color: #a78bfa; font-size: 1.4rem; font-weight: bold;">{sanitizer['total_sanitized']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col4:
         active_p = petri.get("active_places", ["p1"])
         st.markdown(f"""
         <div class="metric-card">
-            <div style="color: #9ca3af; font-size: 0.9rem;">ESTADO ATIVO (PETRI)</div>
+            <div style="color: #9ca3af; font-size: 0.9rem;">ESTADO ATIVO NA REDE DE PETRI</div>
             <div style="color: #34d399; font-size: 1.4rem; font-weight: bold;">{', '.join(active_p) if active_p else 'p1'}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -280,9 +292,8 @@ def render_live_dashboard():
     # -------------------------------------------------------------------------
     # ABAS PRINCIPAIS DO SUPERVISÓRIO
     # -------------------------------------------------------------------------
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3 = st.tabs([
         "🏭 Sinótico da Planta 2D",
-        "🕸️ Grafo da Rede de Petri",
         "📜 Auditoria & Governança (ISO/IEC 30173)",
         "📦 Modelo AAS (Eclipse BaSyx)"
     ])
@@ -338,95 +349,45 @@ def render_live_dashboard():
             st.markdown(f"- 📦 **Total Classificadas:** `{caixas_tot}` *(CLP: {tags.get('contador', 0)})*")
 
     # -------------------------------------------------------------------------
-    # TAB 2: REDE DE PETRI AO VIVO
+    # TAB 2: AUDITORIA E GOVERNANÇA (ISO/IEC 30173)
     # -------------------------------------------------------------------------
     with tab2:
-        st.subheader("Grafo de Estados da Rede de Petri (Modelo Formal do Gêmeo Digital)")
-        st.caption("Os lugares com fichas ativas são iluminados em tempo real conforme as caixas se movem.")
+        st.subheader("Indicadores de Governança e Qualidade de Dados (ISO/IEC 30173)")
+        st.caption("Métricas em tempo real de conformidade, integridade e filtragem da telemetria OPC UA.")
 
-        active_places = petri.get("active_places", [])
-        estados_dict = petri.get("petri_estados", {})
+        col_q1, col_q2, col_q3, col_q4 = st.columns(4)
+        with col_q1:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left: 4px solid #3b82f6;">
+                <div style="color: #93c5fd; font-size: 0.85rem; font-weight: 600;">QUALIDADE DOS DADOS (ISO 30173)</div>
+                <div style="color: #60a5fa; font-size: 1.8rem; font-weight: bold;">{sanitizer.get('data_quality_percentage', 100)}%</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_q2:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left: 4px solid #8b5cf6;">
+                <div style="color: #c4b5fd; font-size: 0.85rem; font-weight: 600;">TOTAL DE EVENTOS RECEBIDOS</div>
+                <div style="color: #a78bfa; font-size: 1.8rem; font-weight: bold;">{sanitizer.get('total_received', 0)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_q3:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left: 4px solid #10b981;">
+                <div style="color: #6ee7b7; font-size: 0.85rem; font-weight: 600;">EVENTOS SANITIZADOS (VÁLIDOS)</div>
+                <div style="color: #34d399; font-size: 1.8rem; font-weight: bold;">{sanitizer.get('total_sanitized', 0)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with col_q4:
+            st.markdown(f"""
+            <div class="metric-card" style="border-left: 4px solid #f59e0b;">
+                <div style="color: #fde68a; font-size: 0.85rem; font-weight: 600;">RUÍDOS / REBOTES FILTRADOS</div>
+                <div style="color: #fbbf24; font-size: 1.8rem; font-weight: bold;">{sanitizer.get('total_filtered_noise', 0)}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        places_info = {
-            "p1": {"name": "p1 (Repouso)", "x": 0, "y": 2},
-            "p2": {"name": "p2 (Entrada)", "x": 2.5, "y": 2},
-            "p3": {"name": "p3 (Presença)", "x": 5, "y": 2},
-            "p4": {"name": "p4 (Em Trânsito)", "x": 7.5, "y": 2},
-            "p5": {"name": "p5 (Mesa Transfer)", "x": 10, "y": 2},
-            "p6": {"name": "p6 (Caixa Baixa)", "x": 12, "y": 3.3},
-            "p7": {"name": "p7 (Desvio Esq.)", "x": 14.5, "y": 3.3},
-            "p8": {"name": "p8 (Caixa Alta)", "x": 12, "y": 0.7},
-            "p9": {"name": "p9 (Desvio Dir.)", "x": 14.5, "y": 0.7},
-            "p10": {"name": "p10 (Fim de Linha)", "x": 17, "y": 2},
-            "p11": {"name": "p11 (Operação)", "x": 2.5, "y": 0.5},
-            "p16": {"name": "p16 (Mesa Livre)", "x": 7.5, "y": 0.5},
-        }
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
-        fig = go.Figure()
-
-        # Arcos da Rede de Petri conectando os estados do processo
-        edges = [
-            ("p1", "p2"), ("p2", "p3"), ("p3", "p4"), ("p4", "p5"),
-            ("p5", "p6"), ("p6", "p7"), ("p7", "p10"),
-            ("p5", "p8"), ("p8", "p9"), ("p9", "p10"),
-            ("p1", "p11"), ("p16", "p4"), ("p6", "p16"), ("p8", "p16")
-        ]
-
-        for src, dst in edges:
-            if src in places_info and dst in places_info:
-                fig.add_trace(go.Scatter(
-                    x=[places_info[src]["x"], places_info[dst]["x"]],
-                    y=[places_info[src]["y"], places_info[dst]["y"]],
-                    mode="lines",
-                    line=dict(width=1.5, color="#4b5563", dash="dot" if "p16" in (src, dst) else "solid"),
-                    hoverinfo="none",
-                    showlegend=False
-                ))
-
-        for p_id, info in places_info.items():
-            fichas = estados_dict.get(p_id, 1 if p_id in active_places else 0)
-            is_active = fichas > 0
-            label = f"{info['name']}<br><b>● {fichas}</b>" if is_active else info["name"]
-
-            node_color = "#10b981" if is_active else "#374151"
-            border_color = "#6ee7b7" if is_active else "#1f2937"
-            if health == "CRITICAL_FAULT" and is_active:
-                node_color = "#ef4444"
-                border_color = "#fca5a5"
-
-            fig.add_trace(go.Scatter(
-                x=[info["x"]],
-                y=[info["y"]],
-                mode="markers+text",
-                name=info["name"],
-                text=[label],
-                textposition="top center",
-                marker=dict(
-                    size=38 if is_active else 24,
-                    color=node_color,
-                    line=dict(width=3, color=border_color)
-                ),
-                hoverinfo="text",
-                showlegend=False
-            ))
-
-        fig.update_layout(
-            showlegend=False,
-            height=400,
-            margin=dict(l=20, r=20, t=40, b=20),
-            plot_bgcolor="#111827",
-            paper_bgcolor="#111827",
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    # -------------------------------------------------------------------------
-    # TAB 3: AUDITORIA E GOVERNANÇA (ISO/IEC 30173)
-    # -------------------------------------------------------------------------
-    with tab3:
-        st.subheader("Log de Auditoria e Linhagem de Dados (ISO/IEC 30173)")
+        st.subheader("Log de Auditoria e Linhagem de Dados")
         st.caption("Registro cronológico dos eventos sanitizados recebidos pelo protocolo OPC UA.")
 
         recent_events = sanitizer.get("recent_events", [])
@@ -460,21 +421,36 @@ def render_live_dashboard():
             st.success("✅ Nenhuma anomalia registrada no histórico de operação.")
 
     # -------------------------------------------------------------------------
-    # TAB 4: MODELO AAS (ECLIPSE BASYX)
+    # TAB 3: MODELO AAS (ECLIPSE BASYX)
     # -------------------------------------------------------------------------
-    with tab4:
+    with tab3:
         st.subheader("Casca Administrativa do Ativo (Asset Administration Shell - AAS)")
         st.caption("Estrutura oficial de submodelos para integração com ecossistemas BaSyx e Indústria 4.0.")
 
         st.json(aas)
 
         aas_json_str = json.dumps(aas, indent=2, ensure_ascii=False)
-        st.download_button(
-            label="📥 Baixar AAS em formato JSON (BaSyx)",
-            data=aas_json_str,
-            file_name="SortingByHeight_AAS_Model.json",
-            mime="application/json"
-        )
+        col_d1, col_d2 = st.columns(2)
+        with col_d1:
+            st.download_button(
+                label="📥 Baixar AAS em formato JSON (BaSyx)",
+                data=aas_json_str,
+                file_name="SortingByHeight_AAS_Model.json",
+                mime="application/json",
+                use_container_width=True
+            )
+        with col_d2:
+            try:
+                aasx_bytes = dt.aas.to_aasx_bytes()
+                st.download_button(
+                    label="📦 Baixar Pacote Oficial AASX (.aasx)",
+                    data=aasx_bytes,
+                    file_name="SortingByHeight_AAS.aasx",
+                    mime="application/asset-administration-shell-package",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.caption(f"AASX: {e}")
 
     # -------------------------------------------------------------------------
     # TAB 5: VISUALIZAÇÃO 3D A PARTIR DO MODELO BIM/IFC REAL (OCULTA TEMPORARIAMENTE)

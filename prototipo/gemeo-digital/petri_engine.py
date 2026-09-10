@@ -201,6 +201,7 @@ def create_initial_petri_net() -> RedePetri:
     # Associação entre eventos de chão de fábrica e transições
     eventos = {
         "start_P": ["t1"],
+        "startDT_P": ["t1"],
         "palletSensor_P": ["t2"],
         "loaded_P": ["t4"],
         "atLeftEntry_P": ["t6"],
@@ -428,7 +429,7 @@ class PetriNetEngine:
         # Sincronização automática: se a esteira está rodando e a Rede de Petri ainda está em p1,
         # significa que a linha iniciou mesmo que o pulso elétrico do botão de start tenha sido instantâneo.
         if self.petri_net.estados.get("p1", 0) > 0:
-            if edge_event in ["start_P", "conveyorEntry_P"] or self.tags.get("conveyorEntry"):
+            if edge_event in ["start_P", "startDT_P", "conveyorEntry_P"] or self.tags.get("conveyorEntry"):
                 self.petri_net.processar_evento("start_P")
                 if self.tags.get("palletSensor") and self.petri_net.estados.get("p2", 0) > 0:
                     self.petri_net.processar_evento("palletSensor_P")
@@ -448,6 +449,10 @@ class PetriNetEngine:
         if edge_event == "loaded_P" and self.petri_net.estados.get("p4", 0) == 0:
             anomaly = self._diagnose_sequence_violation(edge_event, "Peça atingiu a mesa transfer sem detecção no palletSensor")
             return self._register_anomaly(anomaly)
+
+        # Se o operador apertar START com a linha já em funcionamento (fora de p1), ignora sem falso alarme
+        if edge_event in ["start_P", "startDT_P"] and self.petri_net.estados.get("p1", 0) == 0:
+            return self.check_anomalies()
 
         # Disparo da transição formal na Rede de Petri caso o evento pertença ao modelo
         if edge_event and edge_event in self.petri_net.eventos:
