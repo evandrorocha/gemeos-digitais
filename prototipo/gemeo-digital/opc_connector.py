@@ -42,20 +42,35 @@ class DigitalTwinConnector:
         self.sanitizer = DataSanitizer()
         self.aas = AssetAdministrationShell()
         self.is_connected = False
+        self.last_data_received_time: float = 0.0
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._monitor_task: Optional[asyncio.Task] = None
         self.on_state_change_callbacks: List[Callable[[Dict[str, Any]], None]] = []
+        self._incoming_box_is_tall: bool = False
 
         # Instancia o serviço de transporte OPC UA oficial do backend (desenvolvido pelo Caio)
         self.service = OPCUAService(
             rede_petri=self.petri_engine.petri_net,
             url=self.url,
             plc_node=PLC_PRG_NODE_ID,
-            on_datachange=self.process_incoming_tag
+            on_datachange=self.process_incoming_tag,
+            on_status_change=self._handle_opcua_status_change
         )
         self.client: Optional[Client] = None
         self._nodes_cache: Dict[str, Node] = {}
         self._node_id_to_name: Dict[str, str] = {}
+
+    def _handle_opcua_status_change(self, status):
+        """Notificação de status da subscrição OPC UA."""
+        status_code = getattr(status, "Status", status)
+        code_name = getattr(status_code, "name", str(status_code))
+        # BadShutdown ocorre normalmente quando uma sessão anterior é finalizada
+        if code_name in ("BadShutdown", "Good", "BadNoSubscription"):
+            logger.debug(f"Notificação normal de status OPC UA: {code_name}")
+            return
+        if "Bad" in code_name:
+            logger.warning(f"Queda real de conexão indicada pelo servidor OPC UA: {code_name}")
+            self.is_connected = False
 
     def register_callback(self, callback: Callable[[Dict[str, Any]], None]):
         """Registra um callback para notificar interfaces externas (ex: Dashboard)."""
@@ -63,6 +78,9 @@ class DigitalTwinConnector:
 
     def process_incoming_tag(self, tag_name: str, raw_value: Any):
         """Pipeline de processamento: Bruto -> Sanitizado -> Petri -> AAS -> Ação."""
+        self.last_data_received_time = time.time()
+        self.is_connected = True
+
         # 1. Sanitização do Dado
         event = self.sanitizer.sanitize(tag_name, raw_value, source_uri=self.url)
         if event is None:
@@ -75,6 +93,35 @@ class DigitalTwinConnector:
                 asyncio.run_coroutine_threadsafe(self.reset_plant(), self._loop)
             else:
                 asyncio.create_task(self.reset_plant())
+
+        # Coordenação de Classificação no CLP:
+        # 1. Quando highSensor detecta Caixa Alta na esteira de entrada:
+        if tag_name == "highSensor" and event.value is True:
+            self._incoming_box_is_tall = True
+            logger.info("📦 [CLASSIFICAÇÃO] Caixa Alta detectada pelo sensor óptico! Ativando alto=True no CLP.")
+            if self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(self.write_tag("alto", True), self._loop)
+            else:
+                asyncio.create_task(self.write_tag("alto", True))
+
+        # 2. Quando a caixa chega na mesa de transferência (loaded=True):
+        elif tag_name == "loaded" and event.value is True:
+            target_alto = bool(self._incoming_box_is_tall)
+            if self.petri_engine.tags.get("alto") != target_alto:
+                if self._loop and self._loop.is_running():
+                    asyncio.run_coroutine_threadsafe(self.write_tag("alto", target_alto), self._loop)
+                else:
+                    asyncio.create_task(self.write_tag("alto", target_alto))
+
+        # 3. Quando a caixa é transferida e desocupa a mesa (loaded vai para False):
+        elif tag_name == "loaded" and event.value is False:
+            self._incoming_box_is_tall = False
+            # Só reseta 'alto' para False no CLP se o highSensor não estiver vendo outra caixa alta entrando simultaneamente
+            if not self.petri_engine.tags.get("highSensor") and self.petri_engine.tags.get("alto"):
+                if self._loop and self._loop.is_running():
+                    asyncio.run_coroutine_threadsafe(self.write_tag("alto", False), self._loop)
+                else:
+                    asyncio.create_task(self.write_tag("alto", False))
 
         # 2. Atualização da Rede de Petri e Detecção de Falhas
         anomaly = self.petri_engine.update_from_sanitized_event(event)
@@ -143,23 +190,40 @@ class DigitalTwinConnector:
 
     async def _periodic_monitor_loop(self):
         """Loop contínuo de segundo plano para monitorar timeouts, sensores travados e reconexão automática."""
+        last_liveness_check = time.time()
         while True:
             try:
+                now = time.time()
+                # 1. Heartbeat proativo a cada 5.0 segundos apenas se não houver dados recentes
+                time_since_data = now - getattr(self, "last_data_received_time", 0.0)
+                if self.is_connected and (now - last_liveness_check > 5.0):
+                    last_liveness_check = now
+                    # Se recebemos telemetria recente nos últimos 5 segundos, a conexão está viva
+                    if time_since_data > 5.0:
+                        try:
+                            if self.client:
+                                await self.client.check_connection()
+                            else:
+                                self.is_connected = False
+                        except Exception as e:
+                            logger.warning(f"Queda de conexão detectada via check_connection: {e}")
+                            self.is_connected = False
+
+                # 2. Se desconectado, tenta reconexão automática com intervalo controlado
                 if not self.is_connected:
                     logger.info("Conexão OPC UA inativa ou perdida. Tentando reconectar...")
                     try:
                         await self.reconnect()
                     except Exception as e:
                         logger.debug(f"Aguardando servidor OPC UA ficar disponível: {e}")
-                        await asyncio.sleep(2.0)
+                        await asyncio.sleep(3.0)
                         continue
 
-                # Checagem em tempo real de anomalias (timeouts e travamentos)
+                # 3. Checagem em tempo real de anomalias (timeouts e travamentos)
                 anomaly = self.petri_engine.check_anomalies()
                 if anomaly and anomaly.severity == "CRITICAL" and anomaly.is_active:
                     # Se ainda não desligou, dispara emergency_stop autônomo
-                    # Nota: 'stop' é sensor NF (True em operação normal), portanto só checamos 'desligar'
-                    if not self.petri_engine.tags.get("desligar"):
+                    if self.is_connected and not self.petri_engine.tags.get("stopDT"):
                         logger.warning(f"🚨 [MONITOR PERIÓDICO] Falha crítica detectada: {anomaly.message}")
                         await self.emergency_stop(reason=anomaly.message)
             except asyncio.CancelledError:
@@ -172,72 +236,42 @@ class DigitalTwinConnector:
             await asyncio.sleep(0.25)
 
     async def auto_initialize_plc(self):
-        """Garante que o CLP inicialize em estado limpo e pronto para rodar sem travas residuais."""
+        """Garante que as travas do Gêmeo Digital estejam liberadas e o CLP em prontidão."""
         try:
-            # 1. Configura a meta do contador CTU para não desarmar a linha por meta de produção zerada
-            try:
-                node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
-                await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
-                node_rst = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.RESET")
-                await node_rst.write_value(ua.DataValue(ua.Variant(True, ua.VariantType.Boolean)))
-                await asyncio.sleep(0.2)
-                await node_rst.write_value(ua.DataValue(ua.Variant(False, ua.VariantType.Boolean)))
-            except Exception as e:
-                logger.debug(f"Aviso ao inicializar CTU_0: {e}")
-
+            await self.write_tag("stopDT", False)
+            await self.write_tag("startDT", False)
             await self.write_tag("desligar", False)
-            await self.write_tag("stop", True)
-            await self.write_tag("conveyorEntry", False)
-            await self.write_tag("load", False)
-            await self.write_tag("transferLeft", False)
-            await self.write_tag("transferRight", False)
-            await self.write_tag("alto", False)
-            await self.write_tag("aux0", False)
-            await self.write_tag("start", False)
-            for t in [f"t{i}" for i in range(1, 18)]:
-                await self.write_tag(t, False)
-
-            await self.write_tag("reset", True)
-            await asyncio.sleep(0.3)
-            await self.write_tag("reset", False)
-
-            for p in [f"p{i}" for i in range(2, 16)]:
-                await self.write_tag(p, False)
-            await self.write_tag("p1", True)
-            await self.write_tag("p16", True)
-            self.petri_engine.reset()
-            logger.info("✅ CLP auto-inicializado com sucesso em estado de prontidão (p1=True, p16=True).")
+            if "p1" in self.service.tags_por_nome:
+                for p in [f"p{i}" for i in range(2, 16)]:
+                    await self.write_tag(p, False)
+                await self.write_tag("p1", True)
+                await self.write_tag("p16", True)
+            logger.info("✅ Conexão inicializada. Travas liberadas e estado de prontidão verificado no CLP.")
         except Exception as e:
-            logger.warning(f"Aviso na auto-inicialização do CLP: {e}")
+            logger.warning(f"Aviso na inicialização do conector: {e}")
 
     async def write_tag(self, tag_name: str, value: Any):
-        """Escreve um valor em uma tag no CODESYS via OPCUAService."""
-        if not self.is_connected or not self.service:
-            logger.error("Tentativa de escrita sem conexão ativa!")
+        """Escreve um valor em uma tag no CODESYS via OPCUAService de forma segura."""
+        if not self.is_connected or not self.service or not self.client:
+            logger.warning(f"Tentativa de escrita em '{tag_name}' sem conexão ativa!")
+            return False
+
+        # Garante que só escrevemos em nós que realmente existem no CLP
+        if tag_name not in self.service.tags_por_nome:
+            logger.debug(f"Tag '{tag_name}' não existe no CLP (variável puramente interna). Ignorando envio físico.")
             return False
 
         try:
-            # Tenta escrever diretamente pelo OPCUAService do Caio
-            if tag_name in self.service.tags_por_nome:
-                success = await self.service.write_tag(tag_name, value)
-                if success:
-                    logger.info(f"Comando gravado com sucesso: {tag_name} = {value}")
-                return success
-
-            # Fallback para nós aninhados (ex: CTU_0.RESET)
-            node = self._nodes_cache.get(tag_name)
-            if not node and self.client:
-                nid = f"{self.service.plc_node_id}.{tag_name}"
-                node = self.client.get_node(nid)
-                self._nodes_cache[tag_name] = node
-
-            if node:
-                data_type = await node.read_data_type_as_variant_type()
-                data_value = ua.DataValue(ua.Variant(value, data_type))
-                await node.write_value(data_value)
+            success = await self.service.write_tag(tag_name, value)
+            if success:
                 logger.info(f"Comando gravado com sucesso: {tag_name} = {value}")
-                return True
-            return False
+            else:
+                try:
+                    if self.client:
+                        await self.client.check_connection()
+                except Exception:
+                    self.is_connected = False
+            return success
         except Exception as e:
             logger.error(f"Erro ao escrever na tag {tag_name}: {e}")
             err_str = str(e).lower()
@@ -247,7 +281,7 @@ class DigitalTwinConnector:
 
     async def read_tag(self, tag_name: str):
         """Lê o valor de uma tag utilizando o OPCUAService."""
-        if not self.service:
+        if not self.service or not self.is_connected:
             return None
         return await self.service.read_tag(tag_name)
 
@@ -255,11 +289,7 @@ class DigitalTwinConnector:
         """Envia o comando de parada imediata para o CLP desligando todos os motores na hora."""
         logger.warning(f"🛑 [EMERGÊNCIA] {reason}")
         await self.write_tag("stopDT", True)
-        await self.write_tag("desligar", True)
         await self.write_tag("stop", False)  # Botão de parada acionado (NF -> False)
-        for p in [f"p{i}" for i in range(2, 16)]:
-            await self.write_tag(p, False)
-        await self.write_tag("p1", True)
         await self.write_tag("conveyorEntry", False)
         await self.write_tag("load", False)
         await self.write_tag("transferLeft", False)
@@ -271,66 +301,37 @@ class DigitalTwinConnector:
         self.petri_engine.clear_anomalies()
         self.petri_engine.reset()
         
-        # Desarma as tags de controle do Gêmeo Digital (DT)
+        # 1. Desarma as tags de controle do Gêmeo Digital (DT)
         await self.write_tag("stopDT", False)
         await self.write_tag("startDT", False)
         
-        # 1. Configura a meta do contador CTU e zera contagem
-        try:
-            node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
-            await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
-            node_rst = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.RESET")
-            await node_rst.write_value(ua.DataValue(ua.Variant(True, ua.VariantType.Boolean)))
-            await asyncio.sleep(0.1)
-            await node_rst.write_value(ua.DataValue(ua.Variant(False, ua.VariantType.Boolean)))
-        except Exception:
-            pass
-
-        # 2. Desarma travas de segurança e para atuadores
-        await self.write_tag("desligar", False)
+        # 2. Desarma travas e zera comandos de start
+        self._incoming_box_is_tall = False
         await self.write_tag("stop", True)  # NF restaurado
-        await self.write_tag("conveyorEntry", False)
-        await self.write_tag("load", False)
-        await self.write_tag("transferLeft", False)
-        await self.write_tag("transferRight", False)
-
-        # 3. Zera variáveis auxiliares, flags de transição e classificação
+        await self.write_tag("desligar", False)
         await self.write_tag("alto", False)
-        await self.write_tag("aux0", False)
         await self.write_tag("start", False)
-        for t in [f"t{i}" for i in range(1, 18)]:
-            await self.write_tag(t, False)
 
-        # 4. Envia pulso de reset físico para o circuito Ladder do CLP
+        # 3. Envia pulso de reset físico para o circuito Ladder do CLP
         await self.write_tag("reset", True)
         await asyncio.sleep(0.3)
         await self.write_tag("reset", False)
 
-        # 5. Restaura estritamente a marcação inicial da Rede de Petri (p1=True, p16=True, demais=False)
-        for p in [f"p{i}" for i in range(2, 16)]:
-            await self.write_tag(p, False)
-        await self.write_tag("p1", True)
-        await self.write_tag("p16", True)
+        # 4. Restaura estritamente a marcação inicial da Rede de Petri no CLP (limpa bobinas presas)
+        if "p1" in self.service.tags_por_nome:
+            for p in [f"p{i}" for i in range(2, 16)]:
+                await self.write_tag(p, False)
+            await self.write_tag("p1", True)
+            await self.write_tag("p16", True)
+            logger.info("✅ Marcação inicial restaurada no CLP (p1=True, p16=True, p2..p15=False).")
 
     async def start_plant(self):
         """Envia o pulso de START para a planta garantindo transição limpa para p2."""
         logger.info("▶️ [START] Liberando travas e iniciando movimento da esteira...")
         self.petri_engine.clear_anomalies()
-        
-        # Configura a meta do contador CTU caso tenha resetado
-        try:
-            node_pv = self.client.get_node(f"{PLC_PRG_NODE_ID}.CTU_0.PV")
-            await node_pv.write_value(ua.DataValue(ua.Variant(9999, ua.VariantType.UInt16)))
-        except Exception:
-            pass
 
         await self.write_tag("stopDT", False)
-        await self.write_tag("desligar", False)
         await self.write_tag("stop", True)
-        for p in [f"p{i}" for i in range(2, 16)]:
-            await self.write_tag(p, False)
-        await self.write_tag("p1", True)
-        await self.write_tag("p16", True)
 
         await self.write_tag("start", True)
         await self.write_tag("startDT", True)

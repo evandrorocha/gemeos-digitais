@@ -13,6 +13,7 @@ PLC_PRG_NODE = os.getenv(
 
 EVENTOS = {
     "start_P": ["t1"],
+    "startDT_P": ["t1"],
     "palletSensor_P": ["t2"],
     "loaded_P": ["t4"],
     "atLeftEntry_P": ["t6"],
@@ -25,10 +26,11 @@ EVENTOS = {
 
 
 class SubscriptionHandler:
-    def __init__(self, tag_names, event_queue, on_datachange=None):
+    def __init__(self, tag_names, event_queue, on_datachange=None, on_status_change=None):
         self.tag_names = tag_names
         self.event_queue = event_queue
         self.on_datachange = on_datachange
+        self.on_status_change = on_status_change
 
     def datachange_notification(self, node, value, data):
         try:
@@ -44,13 +46,21 @@ class SubscriptionHandler:
         except Exception as error:
             print(f"Erro na notificação OPC UA: {error}")
 
+    def status_change_notification(self, status):
+        try:
+            if self.on_status_change is not None:
+                self.on_status_change(status)
+        except Exception as error:
+            print(f"Erro na notificação de status OPC UA: {error}")
+
 
 class OPCUAService:
-    def __init__(self, rede_petri, url=URL, plc_node=PLC_PRG_NODE, on_datachange=None):
+    def __init__(self, rede_petri, url=URL, plc_node=PLC_PRG_NODE, on_datachange=None, on_status_change=None):
         self.rede_petri = rede_petri
         self.url = url
         self.plc_node_id = plc_node
         self.on_datachange = on_datachange
+        self.on_status_change = on_status_change
 
         self.client = None
         self.subscription = None
@@ -64,6 +74,10 @@ class OPCUAService:
         self.identification_started = False
 
     async def connect(self):
+        self.tags = []
+        self.tags_por_nome = {}
+        self.tag_names = {}
+
         self.client = Client(url=self.url)
         await self.client.connect()
 
@@ -98,11 +112,19 @@ class OPCUAService:
             self.tags_por_nome[tag_name] = node
             self.tag_names[str(node.nodeid)] = tag_name
 
-        handler = SubscriptionHandler(self.tag_names, self.event_queue, on_datachange=self.on_datachange)
+        handler = SubscriptionHandler(
+            self.tag_names,
+            self.event_queue,
+            on_datachange=self.on_datachange,
+            on_status_change=self.on_status_change
+        )
 
         self.subscription = await self.client.create_subscription(100, handler)
 
-        await self.subscription.subscribe_data_change(self.tags)
+        # Batch subscription em lotes de 20 para respeitar o limite de operações do CODESYS
+        for i in range(0, len(self.tags), 20):
+            chunk = self.tags[i:i+20]
+            await self.subscription.subscribe_data_change(chunk)
 
         print(f"Conectado. {len(self.tags)} tags monitoradas.")
 
@@ -132,7 +154,7 @@ class OPCUAService:
         return await node.read_value()
 
     async def process_event(self, event):
-        if event == "start_P":
+        if event in ("start_P", "startDT_P"):
             self.identification_started = True
 
         if event == "stopDT_P":
@@ -141,7 +163,6 @@ class OPCUAService:
 
         if event == "startDT_P":
             await self.write_tag("startDT", False)
-            return
 
         if not self.identification_started:
             return
@@ -153,6 +174,10 @@ class OPCUAService:
             self.rede_petri.atualizar_variavel("alto", 0)
 
         elif event in EVENTOS:
+            # Ignora START redundante se a Rede de Petri já saiu de p1
+            if event in ("start_P", "startDT_P") and self.rede_petri.estados.get("p1", 0) == 0:
+                return
+
             success, message = self.rede_petri.processar_evento(event)
 
             if not success:
@@ -187,7 +212,19 @@ class OPCUAService:
         self.stop_event.set()
 
         if self.subscription is not None:
-            await self.subscription.delete()
+            try:
+                await self.subscription.delete()
+            except Exception:
+                pass
+            self.subscription = None
 
         if self.client is not None:
-            await self.client.disconnect()
+            try:
+                await self.client.disconnect()
+            except Exception:
+                pass
+            self.client = None
+
+        self.tags = []
+        self.tags_por_nome = {}
+        self.tag_names = {}
