@@ -104,7 +104,7 @@ class DigitalTwinBackgroundService:
         """Executa comandos de forma thread-safe na thread do conector."""
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         try:
-            return future.result(timeout=3.0)
+            return future.result(timeout=10.0)
         except Exception as e:
             print(f"[ERRO AO EXECUTAR COMANDO]: {e}")
             return None
@@ -139,10 +139,29 @@ with st.sidebar:
 
     st.markdown("---")
     st.subheader("🎮 Comandos do Operador")
-    
+
+    # Botão de reinicialização completa (Reset + Rebobinar 3D + Start automático)
+    if st.button("🚀 REINICIAR SISTEMA (Reset + Rebobinar + Start)", use_container_width=True, type="primary"):
+        if dt.is_connected:
+            with st.spinner("Reiniciando CLP, rebobinando física 3D e ligando esteira..."):
+                if hasattr(dt, "restart_system"):
+                    service.execute_async(dt.restart_system())
+                else:
+                    async def _do_restart():
+                        await dt.reset_plant()
+                        await asyncio.sleep(1.0)
+                        await dt.start_plant()
+                    service.execute_async(_do_restart())
+            st.toast("Sistema reiniciado e em operação!", icon="🚀")
+        else:
+            dt.petri_engine.clear_anomalies()
+            dt.petri_engine.reset()
+            st.toast("Gêmeo Digital reiniciado localmente.", icon="🔄")
+        st.rerun()
+
     col_c1, col_c2 = st.columns(2)
     with col_c1:
-        if st.button("▶️ START", use_container_width=True, type="primary"):
+        if st.button("▶️ START", use_container_width=True):
             if dt.is_connected:
                 service.execute_async(dt.start_plant())
                 st.toast("Comando START enviado para o CLP!", icon="🚀")

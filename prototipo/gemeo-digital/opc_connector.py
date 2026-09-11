@@ -312,10 +312,14 @@ class DigitalTwinConnector:
         await self.write_tag("alto", False)
         await self.write_tag("start", False)
 
-        # 3. Envia pulso de reset físico para o circuito Ladder do CLP
-        await self.write_tag("reset", True)
-        await asyncio.sleep(0.3)
-        await self.write_tag("reset", False)
+        # 3. Envia pulso de reset físico para o circuito Ladder do CLP e Factory I/O
+        for r_tag in ["reset", "RESET"]:
+            if r_tag in self.service.tags_por_nome:
+                await self.write_tag(r_tag, True)
+        await asyncio.sleep(0.4)
+        for r_tag in ["reset", "RESET"]:
+            if r_tag in self.service.tags_por_nome:
+                await self.write_tag(r_tag, False)
 
         # 4. Restaura estritamente a marcação inicial da Rede de Petri no CLP (limpa bobinas presas)
         if "p1" in self.service.tags_por_nome:
@@ -338,6 +342,19 @@ class DigitalTwinConnector:
         await asyncio.sleep(0.3)
         await self.write_tag("start", False)
         await self.write_tag("startDT", False)
+
+    async def restart_system(self):
+        """
+        Reinicia o sistema completo de ponta a ponta:
+        1. Executa o reset do CLP e da Rede de Petri (aciona o rebobinamento 3D no Factory I/O).
+        2. Aguarda a simulação 3D limpar as caixas e estabilizar.
+        3. Dá partida automática na esteira (START).
+        """
+        logger.info("🔄🚀 [RESTART TOTAL] Reiniciando todo o sistema (Reset + Rebobinar 3D + Start)...")
+        await self.reset_plant()
+        await asyncio.sleep(1.0)
+        await self.start_plant()
+        logger.info("✅ [RESTART TOTAL] Linha reiniciada e em operação normal!")
 
     def inject_fault(self, fault_type: str):
         """Injeta uma falha no motor da Rede de Petri e aciona o protocolo de segurança de forma thread-safe."""
