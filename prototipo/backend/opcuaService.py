@@ -135,7 +135,11 @@ class OPCUAService:
             raise ValueError(f"Tag '{tag_name}' não encontrada.")
 
         try:
-            data_type = await node.read_data_type_as_variant_type()
+            if not hasattr(self, "_data_types_cache"):
+                self._data_types_cache = {}
+            if tag_name not in self._data_types_cache:
+                self._data_types_cache[tag_name] = await node.read_data_type_as_variant_type()
+            data_type = self._data_types_cache[tag_name]
             data_value = ua.DataValue(ua.Variant(value, data_type))
 
             await node.write_value(data_value)

@@ -14,6 +14,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 sys.path.append(str(BASE_DIR / "gemeo-digital"))
 
 import asyncio
+import concurrent.futures
 import json
 import time
 import pandas as pd
@@ -100,14 +101,23 @@ class DigitalTwinBackgroundService:
                 self.connector._monitor_task = self.loop.create_task(self.connector._periodic_monitor_loop())
             self.loop.run_forever()
 
-    def execute_async(self, coro):
-        """Executa comandos de forma thread-safe na thread do conector."""
+    def execute_async(self, coro, timeout=15.0):
+        """
+        Executa comandos de forma thread-safe na thread do conector.
+        Retorna: (sucesso: bool, resultado_ou_erro: Any, foi_timeout: bool)
+        """
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         try:
-            return future.result(timeout=10.0)
+            res = future.result(timeout=timeout)
+            return True, res, False
+        except concurrent.futures.TimeoutError:
+            msg = f"Tempo limite ({timeout:.1f}s) esgotado aguardando resposta do CLP/OPC UA."
+            print(f"[TIMEOUT AO EXECUTAR COMANDO]: {msg}")
+            return False, msg, True
         except Exception as e:
-            print(f"[ERRO AO EXECUTAR COMANDO]: {e}")
-            return None
+            msg = f"Erro na execução do comando: {e}"
+            print(f"[ERRO AO EXECUTAR COMANDO]: {msg}")
+            return False, msg, False
 
 
 @st.cache_resource
@@ -118,6 +128,33 @@ def get_service():
 
 service = get_service()
 dt = service.connector
+
+
+def execute_command(coro, success_msg: str, timeout: float = 15.0) -> bool:
+    """
+    Executa comando assíncrono no conector OPC UA, gerenciando timeouts e erros visíveis.
+    Retorna True em caso de sucesso, False se houver falha ou timeout.
+    """
+    ok, res, is_timeout = service.execute_async(coro, timeout=timeout)
+    if is_timeout:
+        err_desc = (
+            f"⏳ **TIMEOUT DE COMUNICAÇÃO ({timeout:.0f}s):** O comando demorou mais de {timeout:.0f} segundos para responder no CLP! "
+            f"No seu notebook ou sob alta concorrência de CPU (CODESYS + Factory I/O + Docker), "
+            f"as mensagens OPC UA podem acumular atraso ou o CLP demorou para responder."
+        )
+        st.session_state["last_opc_error"] = err_desc
+        st.toast(f"⏳ ERRO: Timeout ({timeout:.0f}s) no CLP!", icon="⚠️")
+        return False
+    elif not ok:
+        err_desc = f"❌ **ERRO OPC UA AO EXECUTAR COMANDO:** {res}"
+        st.session_state["last_opc_error"] = err_desc
+        st.toast(f"❌ Erro ao enviar comando: {res}", icon="🚨")
+        return False
+    else:
+        st.session_state.pop("last_opc_error", None)
+        st.toast(success_msg, icon="🚀" if ("🚀" in success_msg or "oper" in success_msg) else "✅")
+        return True
+
 
 # =============================================================================
 # BARRA LATERAL (SIDEBAR): CONTROLE & INJEÇÃO DE FALHAS
@@ -145,14 +182,13 @@ with st.sidebar:
         if dt.is_connected:
             with st.spinner("Reiniciando CLP, rebobinando física 3D e ligando esteira..."):
                 if hasattr(dt, "restart_system"):
-                    service.execute_async(dt.restart_system())
+                    execute_command(dt.restart_system(), "Sistema reiniciado e em operação!", timeout=20.0)
                 else:
                     async def _do_restart():
                         await dt.reset_plant()
                         await asyncio.sleep(1.0)
                         await dt.start_plant()
-                    service.execute_async(_do_restart())
-            st.toast("Sistema reiniciado e em operação!", icon="🚀")
+                    execute_command(_do_restart(), "Sistema reiniciado e em operação!", timeout=20.0)
         else:
             dt.petri_engine.clear_anomalies()
             dt.petri_engine.reset()
@@ -163,29 +199,30 @@ with st.sidebar:
     with col_c1:
         if st.button("▶️ START", use_container_width=True):
             if dt.is_connected:
-                service.execute_async(dt.start_plant())
-                st.toast("Comando START enviado para o CLP!", icon="🚀")
+                execute_command(dt.start_plant(), "Comando START enviado para o CLP!", timeout=8.0)
             else:
                 st.toast("Aguardando reconexão com o CLP...", icon="⏳")
+            st.rerun()
 
     with col_c2:
         if st.button("🔄 RESET", use_container_width=True):
             if dt.is_connected:
-                service.execute_async(dt.reset_plant())
+                with st.spinner("Enviando comando RESET para o CLP..."):
+                    execute_command(dt.reset_plant(), "Comando RESET enviado! Falhas limpas.", timeout=15.0)
             else:
                 dt.petri_engine.clear_anomalies()
                 dt.petri_engine.reset()
-            st.toast("Comando RESET enviado! Falhas limpas.", icon="🔄")
+                st.toast("Falhas limpas localmente.", icon="🔄")
             st.rerun()
 
     col_e1, col_e2 = st.columns(2)
     with col_e1:
         if st.button("🛑 PARADA EMERG.", use_container_width=True):
             if dt.is_connected:
-                service.execute_async(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"))
+                execute_command(dt.emergency_stop(reason="Parada acionada manualmente no Dashboard"), "PARADA DE EMERGÊNCIA ATIVADA!", timeout=8.0)
             else:
                 dt.petri_engine.inject_synthetic_anomaly("emergency_stop")
-            st.toast("PARADA DE EMERGÊNCIA ATIVADA!", icon="🛑")
+                st.toast("PARADA DE EMERGÊNCIA ATIVADA!", icon="🛑")
             st.rerun()
     with col_e2:
         if st.button("🗑️ ZERAR CONTAGEM", use_container_width=True):
@@ -224,6 +261,17 @@ def render_live_dashboard():
     if not state.get("is_connected", False):
         st.warning("⏳ **Conexão com o CLP (CODESYS) em processo de reconexão automática...** O painel se recupera automaticamente assim que o sinal OPC UA for restabelecido.", icon="⚠️")
 
+    # Banner de aviso para Timeout ou Erros de Comando OPC UA
+    if st.session_state.get("last_opc_error"):
+        col_err1, col_err2 = st.columns([5, 1])
+        with col_err1:
+            st.error(st.session_state["last_opc_error"], icon="⏳")
+        with col_err2:
+            st.write("")
+            if st.button("✖️ Fechar Erro", key="btn_dismiss_opc_err", use_container_width=True):
+                st.session_state.pop("last_opc_error", None)
+                st.rerun()
+
     # Banner de Alerta Crítico se houver falha
     if health == "CRITICAL_FAULT":
         col_b1, col_b2 = st.columns([5, 1])
@@ -244,14 +292,13 @@ def render_live_dashboard():
                 if dt.is_connected:
                     with st.spinner("Reiniciando CLP, rebobinando física 3D e ligando esteira..."):
                         if hasattr(dt, "restart_system"):
-                            service.execute_async(dt.restart_system())
+                            execute_command(dt.restart_system(), "Sistema reiniciado e em operação!", timeout=20.0)
                         else:
                             async def _do_restart():
                                 await dt.reset_plant()
                                 await asyncio.sleep(1.0)
                                 await dt.start_plant()
-                            service.execute_async(_do_restart())
-                    st.toast("Sistema reiniciado e em operação!", icon="🚀")
+                            execute_command(_do_restart(), "Sistema reiniciado e em operação!", timeout=20.0)
                 else:
                     dt.petri_engine.clear_anomalies()
                     dt.petri_engine.reset()

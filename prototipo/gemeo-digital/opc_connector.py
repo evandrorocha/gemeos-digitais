@@ -298,8 +298,6 @@ class DigitalTwinConnector:
     async def reset_plant(self):
         """Envia o comando de reset para restabelecer a operação normal e a marcação inicial de Petri."""
         logger.info("🔄 [RESET] Enviando comando de reset e restaurando marcação inicial no CLP...")
-        self.petri_engine.clear_anomalies()
-        self.petri_engine.reset()
         
         # 1. Desarma as tags de controle do Gêmeo Digital (DT)
         await self.write_tag("stopDT", False)
@@ -329,6 +327,10 @@ class DigitalTwinConnector:
             await self.write_tag("p16", True)
             logger.info("✅ Marcação inicial restaurada no CLP (p1=True, p16=True, p2..p15=False).")
 
+        # Só limpa as anomalias e reinicia Petri após os comandos físicos serem gravados no CLP
+        self.petri_engine.clear_anomalies()
+        self.petri_engine.reset()
+
     async def start_plant(self):
         """Envia o pulso de START para a planta garantindo transição limpa para p2."""
         logger.info("▶️ [START] Liberando travas e iniciando movimento da esteira...")
@@ -355,7 +357,6 @@ class DigitalTwinConnector:
 
         # 1. Antes de rebobinar e dar reset: desativa parada de emergência e liga esteiras
         logger.info("🔓 [RESTART] Desativando parada de emergência e ligando esteiras...")
-        self.petri_engine.clear_anomalies()
         await self.write_tag("stopDT", False)
         await self.write_tag("stop", True)
         await self.write_tag("desligar", False)
