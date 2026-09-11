@@ -240,13 +240,22 @@ def render_live_dashboard():
         with col_b2:
             st.write("")
             st.write("")
-            if st.button("🔄 RESET / LIMPAR", key="btn_reset_banner", use_container_width=True, type="primary"):
+            if st.button("🚀 REINICIAR SISTEMA", key="btn_reset_banner", use_container_width=True, type="primary"):
                 if dt.is_connected:
-                    service.execute_async(dt.reset_plant())
+                    with st.spinner("Reiniciando CLP, rebobinando física 3D e ligando esteira..."):
+                        if hasattr(dt, "restart_system"):
+                            service.execute_async(dt.restart_system())
+                        else:
+                            async def _do_restart():
+                                await dt.reset_plant()
+                                await asyncio.sleep(1.0)
+                                await dt.start_plant()
+                            service.execute_async(_do_restart())
+                    st.toast("Sistema reiniciado e em operação!", icon="🚀")
                 else:
                     dt.petri_engine.clear_anomalies()
                     dt.petri_engine.reset()
-                st.toast("Linha resetada e falhas limpas!", icon="🔄")
+                    st.toast("Gêmeo Digital reiniciado localmente.", icon="🔄")
                 st.rerun()
 
     # -------------------------------------------------------------------------
