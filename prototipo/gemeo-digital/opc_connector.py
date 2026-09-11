@@ -346,13 +346,39 @@ class DigitalTwinConnector:
     async def restart_system(self):
         """
         Reinicia o sistema completo de ponta a ponta:
-        1. Executa o reset do CLP e da Rede de Petri (aciona o rebobinamento 3D no Factory I/O).
-        2. Aguarda a simulação 3D limpar as caixas e estabilizar.
-        3. Dá partida automática na esteira (START).
+        1. Antes de rebobinar e dar reset: desativa parada de emergência e liga as esteiras.
+        2. Executa o reset do CLP e da Rede de Petri (aciona o rebobinamento 3D no Factory I/O).
+        3. Aguarda a simulação 3D limpar as caixas e estabilizar (1.0s).
+        4. Dá partida automática na esteira (START).
         """
-        logger.info("🔄🚀 [RESTART TOTAL] Reiniciando todo o sistema (Reset + Rebobinar 3D + Start)...")
+        logger.info("🔄🚀 [RESTART TOTAL] Iniciando reinicialização do sistema...")
+
+        # 1. Antes de rebobinar e dar reset: desativa parada de emergência e liga esteiras
+        logger.info("🔓 [RESTART] Desativando parada de emergência e ligando esteiras...")
+        self.petri_engine.clear_anomalies()
+        await self.write_tag("stopDT", False)
+        await self.write_tag("stop", True)
+        await self.write_tag("desligar", False)
+        
+        # Liga as esteiras
+        if "conveyorEntry" in self.service.tags_por_nome:
+            await self.write_tag("conveyorEntry", True)
+        await self.write_tag("start", True)
+        await self.write_tag("startDT", True)
+        await asyncio.sleep(0.5)
+        await self.write_tag("start", False)
+        await self.write_tag("startDT", False)
+
+        # 2. Executa o reset do CLP e da Rede de Petri (aciona o rebobinamento 3D no Factory I/O)
+        logger.info("🔄 [RESTART] Executando reset e rebobinando física 3D...")
         await self.reset_plant()
+
+        # 3. Aguarda a simulação 3D limpar as caixas e estabilizar
+        logger.info("⏳ [RESTART] Aguardando estabilização da física 3D (1.0s)...")
         await asyncio.sleep(1.0)
+
+        # 4. Dá partida automática na esteira (START)
+        logger.info("▶️ [RESTART] Dando partida automática na esteira (START)...")
         await self.start_plant()
         logger.info("✅ [RESTART TOTAL] Linha reiniciada e em operação normal!")
 
