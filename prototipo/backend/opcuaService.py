@@ -21,7 +21,9 @@ EVENTOS = {
     "atRightEntry_P": ["t9"],
     "atRightExit_P": ["t10"],
     "stop_N": ["t12"],
+    "stopDT_N": ["t12"],
     "reset_P": ["t14"],
+    "resetDT_P": ["t14"]
 }
 
 
@@ -186,11 +188,15 @@ class OPCUAService:
                 return
 
             success, message = self.rede_petri.processar_evento(event)
-
             if not success:
                 await self.write_tag("stopDT", True)
-
             print(message)
+
+            success, message = self.rede_petri.validar_quantidade_de_fichas()
+            if not success:
+                await self.write_tag("stopDT", True)
+                print(message)
+
 
     async def run(self):
         await self.connect()

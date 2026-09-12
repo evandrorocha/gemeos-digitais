@@ -5,7 +5,8 @@ class RedePetri:
                  transicoes2lugares=None, 
                  eventos=None, 
                  variaveis=None,
-                 condicoes=None):
+                 condicoes=None,
+                 limiteFichas=None):
 
         # Módulo dos estados
         # {lugar: quantidade_de_fichas}
@@ -38,6 +39,10 @@ class RedePetri:
         # Conjunto que indica associacao entre transicao e variavel interna
         # {"transicao": ("variavel", valor)}
         self.condicoes = condicoes if condicoes is not None else {}
+
+        # Conjunto que indica o número máximo permitido de fichas
+        # {"lugar": numero máximo de fichas}
+        self.limiteFichas = limiteFichas if limiteFichas is not None else {} 
 
     def adicionar_estado(self, lugar, fichas=0):
         self.estados[lugar] = fichas
@@ -122,7 +127,7 @@ class RedePetri:
 
         # 1. Verificar o evento
         if evento not in self.eventos:
-            return False, [f"Evento '{evento}' nao esta cadastrado."]
+            return False, [f"ERRO: Evento '{evento}' nao esta cadastrado."]
 
         transicoes_evento = self.eventos[evento]
 
@@ -138,7 +143,7 @@ class RedePetri:
 
         # 4. Se nenhuma transição estiver habilitada
         if not transicoes_escolhidas:
-            return False, [f"Nenhuma transicao associada ao evento '{evento}' esta habilitada."]
+            return False, [f"ERRO: Nenhuma transicao associada ao evento '{evento}' esta habilitada."]
 
         # 5. Disparar as transições associadas
         for transicao in transicoes_escolhidas:
@@ -154,7 +159,7 @@ class RedePetri:
                     self.estados[lugar] += 1
 
             mensagens.append(
-                f"Evento '{evento}': transicao '{transicao}' disparada a partir de '{lugares_origem}'."
+                f"INFO: Evento '{evento}': transicao '{transicao}' disparada a partir de '{lugares_origem}'."
             )
 
         # 6. Disparar automaticamente as transições lambda
@@ -189,10 +194,18 @@ class RedePetri:
                     self.estados[lugar] += 1
 
             mensagens.append(
-                f"Transicao lambda '{transicao_lambda}' disparada a partir de '{lugares_origem}'."
+                f"INFO: Transicao lambda '{transicao_lambda}' disparada a partir de '{lugares_origem}'."
             )
 
         return True, mensagens
+
+    def validar_quantidade_de_fichas(self):
+        # Compara a quantidade atual de fichas com o limite
+        for lugar, fichas in self.estados.items():
+            if fichas > self.limiteFichas[lugar]:
+                return False, [f"ERRO: Lugar '{lugar}' excedeu o número limite de fichas (Atual: {fichas}, esperado: {self.limiteFichas[lugar]})."]
+
+        return True, [f"INFO: Fichas validadas."]
 
     # VISUALIZAÇÃO
     def mostrar_estados(self):
