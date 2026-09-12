@@ -168,6 +168,9 @@ class OPCUAService:
         if event == "startDT_P":
             await self.write_tag("startDT", False)
 
+        if event == "resetDT_P":
+            await self.write_tag("resetDT", False)
+
         if not self.identification_started:
             return
 
@@ -194,6 +197,7 @@ class OPCUAService:
 
         await self.write_tag("stopDT", False)
         await self.write_tag("startDT", False)
+        await self.write_tag("resetDT", False)
 
         print("Monitoramento iniciado.")
 
