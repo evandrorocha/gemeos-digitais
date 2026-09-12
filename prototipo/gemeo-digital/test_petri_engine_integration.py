@@ -256,6 +256,42 @@ def test_nc_sensors_normal_running_no_false_stuck_on():
     print("✅ TESTE 10 PASSOU COM SUCESSO!\n")
 
 
+def test_capacity_limit_exceeded():
+    print("=== TESTE 11: Limite de Capacidade de Fichas (Esteira Lotada) ===")
+    engine = PetriNetEngine()
+
+    # Simula 5 caixas na esteira esquerda (p7 = 5) -> Dentro do limite
+    engine.petri_net.estados["p7"] = 5
+    anomaly = engine.check_anomalies()
+    assert anomaly is None
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY"
+    assert len(summary["active_anomalies"]) == 0
+
+    # 6ª caixa entra na esteira esquerda (p7 = 6) -> Excede limite de 5
+    engine.petri_net.estados["p7"] = 6
+    anomaly = engine.check_anomalies()
+    assert anomaly is not None
+    assert anomaly.anomaly_type == "CAPACITY_LIMIT_EXCEEDED"
+    assert anomaly.severity == "CRITICAL"
+    assert "p7" in anomaly.message
+
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "CRITICAL_FAULT"
+    assert len(summary["active_anomalies"]) == 1
+    print(f"✅ Anomalia de capacidade capturada com sucesso: {anomaly.message}")
+
+    # Caixa sai da esteira (p7 = 5) -> Volta para o limite seguro
+    engine.petri_net.estados["p7"] = 5
+    anomaly = engine.check_anomalies()
+    assert anomaly is None
+    summary = engine.get_status_summary()
+    assert summary["health_status"] == "HEALTHY"
+    assert len(summary["active_anomalies"]) == 0
+    print("✅ Auto-recuperação de capacidade validada com sucesso!")
+    print("✅ TESTE 11 PASSOU COM SUCESSO!\n")
+
+
 if __name__ == "__main__":
     test_normal_cycle()
     test_pallet_sensor_stuck_off()
@@ -267,4 +303,5 @@ if __name__ == "__main__":
     test_pallet_arrival_in_resting_state()
     test_exit_sensor_clearing_in_resting_state()
     test_nc_sensors_normal_running_no_false_stuck_on()
-    print("🎉 TODOS OS 10 TESTES DE INTEGRAÇÃO PASSARAM COM SUCESSO!")
+    test_capacity_limit_exceeded()
+    print("🎉 TODOS OS 11 TESTES DE INTEGRAÇÃO PASSARAM COM SUCESSO!")

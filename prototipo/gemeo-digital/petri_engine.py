@@ -21,6 +21,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.append(str(BACKEND_DIR))
 
 from redeDePetri import RedePetri
+import mainBackend
 
 from config import (
     TIMEOUT_CONVEYOR_ENTRY_SEC,
@@ -52,74 +53,26 @@ class AnomalyReport:
 def create_initial_petri_net() -> RedePetri:
     """
     Constrói a instância formal da Rede de Petri do processo Sorting by Height,
-    utilizando exatamente a topologia e transições definidas na arquitetura.
+    importando diretamente a topologia e parâmetros unificados de mainBackend (Single Source of Truth).
     """
+    # Clona os dicionários de mainBackend para garantir isolamento limpo por instância
+    lugares = dict(mainBackend.LUGARES)
+    lugares2transicoes = {k: list(v) for k, v in mainBackend.LUGARES2TRANSICOES.items()}
+    transicoes2lugares = {k: list(v) for k, v in mainBackend.TRANSICOES2LUGARES.items()}
+    eventos = {k: list(v) for k, v in mainBackend.EVENTOS.items()}
+    variaveis = dict(mainBackend.VARIAVEIS)
+    condicoes = dict(mainBackend.CONDICOES)
+    limite_fichas = dict(getattr(mainBackend, "LIMITE_FICHAS", {}))
 
-    # Lugares (marcação inicial: p1 = 1 para repouso, p16 = 1 para mesa livre)
-    lugares = {
-        "p1": 1, "p2": 0, "p3": 0, "p4": 0,
-        "p5": 0, "p6": 0, "p7": 0, "p8": 0,
-        "p9": 0, "p10": 0, "p11": 0, "p12": 0,
-        "p13": 0, "p16": 1
-    }
-
-    # Transições de saída de cada lugar
-    lugares2transicoes = {
-        "p1": ["t1"],
-        "p2": ["t2"],
-        "p3": ["t3"],
-        "p4": ["t4"],
-        "p5": ["t5", "t8"],
-        "p6": ["t6"],
-        "p7": ["t7"],
-        "p8": ["t9"],
-        "p9": ["t10"],
-        "p10": ["t11"],
-        "p11": ["t12", "t14"],
-        "p12": ["t13"],
-        "p13": ["t15"],
-        "p16": ["t3"]
-    }
-
-    # Lugares de destino de cada transição
-    transicoes2lugares = {
-        "t1": ["p2", "p11"],
-        "t2": ["p3"],
-        "t3": ["p2", "p4"],
-        "t4": ["p5"],
-        "t5": ["p6"],
-        "t6": ["p7", "p16"],
-        "t7": ["p10"],
-        "t8": ["p8"],
-        "t9": ["p9", "p16"],
-        "t10": ["p10"],
-        "t11": ["empty"],
-        "t12": ["p12"],
-        "t13": ["p1"],
-        "t14": ["p13"],
-        "t15": ["p1"]
-    }
-
-    # Associação entre eventos de chão de fábrica e transições
-    eventos = {
-        "start_P": ["t1"],
-        "startDT_P": ["t1"],
-        "palletSensor_P": ["t2"],
-        "loaded_P": ["t4"],
-        "atLeftEntry_P": ["t6"],
-        "atLeftExit_P": ["t7"],
-        "atRightEntry_P": ["t9"],
-        "atRightExit_P": ["t10"],
-        "stop_N": ["t12"],
-        "reset_P": ["t14"]
-    }
-
-    # Variáveis internas e condições de guarda
-    variaveis = {"alto": 0}
-    condicoes = {
-        "t5": ("alto", 0),
-        "t8": ("alto", 1)
-    }
+    # Compatibilidade automática com CLP: garante mapeamento consistente de p16 (mesa livre)
+    if "p16" not in lugares and "p14" in lugares:
+        lugares["p16"] = lugares.pop("p14")
+        if "p14" in lugares2transicoes:
+            lugares2transicoes["p16"] = lugares2transicoes.pop("p14")
+        for t, dests in transicoes2lugares.items():
+            transicoes2lugares[t] = ["p16" if d == "p14" else d for d in dests]
+    if "p16" not in limite_fichas:
+        limite_fichas["p16"] = limite_fichas.get("p14", 1)
 
     return RedePetri(
         estados=lugares,
@@ -127,7 +80,8 @@ def create_initial_petri_net() -> RedePetri:
         transicoes2lugares=transicoes2lugares,
         eventos=eventos,
         variaveis=variaveis,
-        condicoes=condicoes
+        condicoes=condicoes,
+        limiteFichas=limite_fichas
     )
 
 
@@ -465,12 +419,72 @@ class PetriNetEngine:
             backend_message=error_msg
         )
 
+    def _diagnose_capacity_violation(self, error_msg: Any) -> AnomalyReport:
+        """
+        Interpreta a violação de limite máximo de fichas (acúmulo/lotação de caixas)
+        e gera o laudo de anomalia estruturado para o Dashboard e AAS.
+        """
+        if isinstance(error_msg, (list, tuple)):
+            error_msg = " ".join(str(m) for m in error_msg)
+        else:
+            error_msg = str(error_msg or "")
+
+        now = time.time()
+        now_iso = datetime.now(timezone.utc).isoformat()
+        current_active = [p for p, fichas in self.petri_net.estados.items() if fichas > 0]
+
+        # Identifica o lugar excedido na mensagem (ex: "Lugar 'p7' excedeu...")
+        lugar = "Desconhecido"
+        for p in self.petri_net.estados.keys():
+            if f"'{p}'" in error_msg:
+                lugar = p
+                break
+
+        fichas_atuais = self.petri_net.estados.get(lugar, 0)
+        limite = getattr(self.petri_net, "limiteFichas", {}).get(lugar, 5 if lugar in ["p7", "p9"] else 1)
+
+        component_names = {
+            "p7": "Esteira de Saída Esquerda (p7 - Limite: 5 caixas)",
+            "p9": "Esteira de Saída Direita (p9 - Limite: 5 caixas)",
+            "p4": "Esteira de Entrada (p4 - Mesa de Classificação)",
+            "p2": "Esteira de Entrada (p2 - Sensor de Presença)",
+            "p6": "Transferência Esquerda (p6)",
+            "p8": "Transferência Direita (p8)",
+            "p16": "Mesa de Transferência (p16)"
+        }
+        comp = component_names.get(lugar, f"Lugar {lugar} da Rede de Petri")
+
+        return AnomalyReport(
+            anomaly_id=f"ANOM_CAPACITY_{lugar}_{int(now)}",
+            anomaly_type="CAPACITY_LIMIT_EXCEEDED",
+            severity="CRITICAL",
+            component=comp,
+            message=f"Capacidade Máxima Excedida: O lugar '{lugar}' acumulou {fichas_atuais} fichas (limite máximo suportado: {limite}). Risco de congestionamento ou colisão de caixas na esteira! [Backend: \"{error_msg}\"]",
+            timestamp_iso=now_iso,
+            timestamp_unix=now,
+            current_marking=current_active,
+            suggested_action=f"Esvazie a {comp} e desobstrua o final da linha antes de reiniciar a esteira.",
+            backend_message=error_msg
+        )
+
+    def auto_clear_capacity_anomalies(self):
+        """Desativa anomalias de capacidade quando o número de fichas volta a ficar dentro dos limites seguros."""
+        for a in self.active_anomalies:
+            if a.anomaly_type == "CAPACITY_LIMIT_EXCEEDED" and a.is_active:
+                a.is_active = False
+        self.active_anomalies = [a for a in self.active_anomalies if a.is_active]
+
     def check_anomalies(self) -> Optional[AnomalyReport]:
         """
-        Verificações periódicas de anomalias.
-        Atualmente todas as regras de timeout e inconsistência customizadas foram removidas,
-        confiando exclusivamente nas transições formais da Rede de Petri do backend.
+        Verificações periódicas de anomalias (capacidade de fichas e regras formais).
         """
+        if hasattr(self.petri_net, "validar_quantidade_de_fichas"):
+            valido, msg_fichas = self.petri_net.validar_quantidade_de_fichas()
+            if not valido:
+                anomaly = self._diagnose_capacity_violation(msg_fichas)
+                return self._register_anomaly(anomaly)
+            else:
+                self.auto_clear_capacity_anomalies()
         return None
 
     def inject_synthetic_anomaly(self, anomaly_type: str) -> AnomalyReport:
@@ -479,7 +493,19 @@ class PetriNetEngine:
         now_iso = datetime.now(timezone.utc).isoformat()
         current_active = [p for p, v in self.petri_net.estados.items() if v > 0]
 
-        if anomaly_type == "STUCK_OFF_HIGH_SENSOR":
+        if anomaly_type == "CAPACITY_LIMIT_EXCEEDED":
+            anomaly = AnomalyReport(
+                anomaly_id=f"SYNTH_CAPACITY_{int(now)}",
+                anomaly_type="CAPACITY_LIMIT_EXCEEDED",
+                severity="CRITICAL",
+                component="Esteira de Saída Esquerda (p7 - Limite: 5 caixas)",
+                message="[FALHA INJETADA] Capacidade máxima excedida: Mais de 5 caixas acumuladas na esteira de saída esquerda!",
+                timestamp_iso=now_iso,
+                timestamp_unix=now,
+                current_marking=current_active,
+                suggested_action="Esvazie a esteira de saída e remova o congestionamento de caixas."
+            )
+        elif anomaly_type == "STUCK_OFF_HIGH_SENSOR":
             anomaly = AnomalyReport(
                 anomaly_id=f"SYNTH_STUCK_OFF_{int(now)}",
                 anomaly_type="SENSOR_STUCK_OFF",

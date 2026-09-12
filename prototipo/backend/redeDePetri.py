@@ -202,8 +202,9 @@ class RedePetri:
     def validar_quantidade_de_fichas(self):
         # Compara a quantidade atual de fichas com o limite
         for lugar, fichas in self.estados.items():
-            if fichas > self.limiteFichas[lugar]:
-                return False, [f"ERRO: Lugar '{lugar}' excedeu o número limite de fichas (Atual: {fichas}, esperado: {self.limiteFichas[lugar]})."]
+            limite = self.limiteFichas.get(lugar, 1)
+            if fichas > limite:
+                return False, [f"ERRO: Lugar '{lugar}' excedeu o número limite de fichas (Atual: {fichas}, esperado: {limite})."]
 
         return True, [f"INFO: Fichas validadas."]
 
