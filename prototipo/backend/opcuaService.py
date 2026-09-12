@@ -21,7 +21,7 @@ EVENTOS = {
     "atRightEntry_P": ["t9"],
     "atRightExit_P": ["t10"],
     "stop_N": ["t12"],
-    "stopDT_N": ["t12"],
+    "stopDT_P": ["t12"],
     "reset_P": ["t14"],
     "resetDT_P": ["t14"]
 }
