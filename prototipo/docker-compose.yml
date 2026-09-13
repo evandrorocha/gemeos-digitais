@@ -26,6 +26,52 @@ services:
     networks:
       - digital-twin-net
 
+  # Serviço 2: API AAS v3 consumida pelo BaSyx Web UI e outros clientes
+  aas-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gemeo_digital_aas_api
+    restart: unless-stopped
+    command: ["uvicorn", "aas_api:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./aas_api.py:/app/aas_api.py
+      - ./gemeo-digital:/app/gemeo-digital
+      - ./backend:/app/backend
+    environment:
+      - OPCUA_SERVER_URL=opc.tcp://host.docker.internal:4840
+      - DEBOUNCE_TIME_MS=50
+      - MAX_PRESENCE_TIME_SEC=8.0
+      - TIMEOUT_CONVEYOR_ENTRY_SEC=5.0
+      - TIMEOUT_TRANSFER_SEC=3.5
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - digital-twin-net
+
+  # Serviço 3: visualizador oficial Eclipse BaSyx
+  basyx-web-ui:
+    build:
+      context: ./basyx-aas-web-ui/aas-web-ui
+      dockerfile: Dockerfile
+    image: gemeo-digital-basyx-web-ui:patched
+    container_name: basyx_web_ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      aas-api:
+        condition: service_healthy
+    networks:
+      - digital-twin-net
+
 networks:
   digital-twin-net:
     driver: bridge

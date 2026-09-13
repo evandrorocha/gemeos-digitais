@@ -85,6 +85,17 @@ Se você já possui Python 3.10+ instalado no seu computador:
 4. O Streamlit abrirá automaticamente no seu navegador no endereço:  
    👉 **`http://localhost:8501`**
 
+5. Para expor o AAS a outros programas, inicie a API em outro terminal:
+   ```powershell
+   python aas_api.py
+   ```
+   A API ficará disponível em **`http://localhost:8000`**. O endpoint base
+   para o BaSyx Web UI é **`http://localhost:8000/api/v3`**. Verifique o
+   estado em **`http://localhost:8000/health`**.
+
+   Rotas principais: `GET /api/v3/shells`, `GET /api/v3/submodels`,
+   `GET /api/v3/aas` (Environment completo) e `GET /api/v3/aasx` (AASX).
+
 ---
 
 ### Opção 2: Executando COM Docker (Docker Compose) 🐳
@@ -104,6 +115,27 @@ Ideal para isolamento total de ambiente ou execução em outras máquinas sem pr
 
 3. Abra o navegador em:  
    👉 **`http://localhost:8501`**
+
+   O mesmo comando também inicia a API AAS em **`http://localhost:8000`** e
+   o Eclipse BaSyx Web UI em **`http://localhost:3000`**. No BaSyx Web UI,
+      abra **Settings -> Manage Infrastructures -> Edit Local BaSyx**. Mantenha o template **Full** e configure todos os endpoints abaixo
+      com a mesma base **`http://localhost:8000/api/v3`**:
+
+      * AAS Discovery
+      * AAS Registry
+      * Submodel Registry
+      * AAS Repository
+      * Submodel Repository
+      * Concept Description Repository
+      * Company Lookup
+
+      Desmarque as opções de criação automática de descriptors/asset links, salve
+      e selecione essa infraestrutura. O erro de `NetworkError` ocorre quando a
+      configuração padrão ainda tenta acessar `localhost:9081`, `9082`, `9083`,
+      `9084` e `5080`, serviços que não fazem parte deste Compose.
+
+      A API fornece as rotas de AAS Repository, Submodel Repository, Registry e
+      Discovery v3, além de `/api/v3/aas` para o Environment completo.
 
 > 💡 **Nota de Desenvolvimento (Live Reload):** O `docker-compose.yml` está configurado com mapeamento de volumes. Qualquer alteração que você fizer e salvar nos arquivos Python (`app.py`, `petri_engine.py`, etc.) no seu editor será refletida **imediatamente** no container sem precisar recompilar a imagem!
 

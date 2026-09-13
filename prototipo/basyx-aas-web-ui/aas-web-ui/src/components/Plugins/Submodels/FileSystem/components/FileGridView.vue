@@ -1,0 +1,128 @@
+<template>
+  <div>
+    <!-- Empty State -->
+    <v-empty-state v-if="fileObjects.length === 0" icon="mdi-folder-open-outline" title="No files or folders">
+      <template #actions>
+        <FileSystemNewMenu @create-folder="handleCreateFolder" @open-upload-dialog="handleOpenUploadDialog" />
+      </template>
+    </v-empty-state>
+
+    <!-- Folders and Navigation Elements -->
+    <div v-else class="d-flex flex-wrap mt-5 ga-3">
+      <div
+        v-for="element in foldersAndNavigation"
+        :key="element.idShort"
+        class="flex-grow-0 flex-shrink-0"
+        style="width: 220px"
+      >
+        <!-- Navigation Element (go up) -->
+        <v-lazy v-if="element.modelType === 'NavigationElement'">
+          <NavigationCard
+            :display-name="getFolderName(element)"
+            :is-drag-over="dragOverFolder === element.idShort"
+            @dragleave="(e) => handleDragLeave(e, element)"
+            @dragover="(e) => handleDragOver(e, element)"
+            @drop="(e) => handleDrop(e, element)"
+            @navigate-up="handleNavigateUp"
+          />
+        </v-lazy>
+
+        <!-- Folder -->
+        <v-lazy v-else-if="element.modelType === 'SubmodelElementCollection'">
+          <FolderCard
+            :display-name="getFolderName(element)"
+            :folder="element"
+            :is-drag-over="dragOverFolder === element.idShort"
+            :is-selected="isItemSelected(element)"
+            @click="handleFolderClick(element)"
+            @delete="handleDelete(element)"
+            @dragend="handleDragEnd"
+            @dragleave="(e) => handleDragLeave(e, element)"
+            @dragover="(e) => handleDragOver(e, element)"
+            @dragstart="(e) => handleDragStart(e, element)"
+            @drop="(e) => handleDrop(e, element)"
+            @edit="handleEditFolder(element)"
+            @toggle-selection="handleToggleSelection(element)"
+          />
+        </v-lazy>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div v-if="fileObjects.length > 0" class="d-flex flex-wrap mt-3 ga-3">
+      <div v-for="file in files" :key="file.idShort" class="flex-grow-0 flex-shrink-0" style="width: 220px">
+        <v-lazy>
+          <FileCard
+            :file="file"
+            :file-url="fileUrls[file.idShort]"
+            :is-selected="isItemSelected(file)"
+            @delete="handleDelete(file)"
+            @download="handleDownload(file)"
+            @dragend="handleDragEnd"
+            @dragstart="(e) => handleDragStart(e, file)"
+            @preview="handlePreview(file)"
+            @toggle-selection="handleToggleSelection(file)"
+          />
+        </v-lazy>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+  import type { FileSystemElement, FileUrlsMap } from '../types'
+  import { computed } from 'vue'
+
+  interface Props {
+    fileObjects: FileSystemElement[]
+    fileUrls: FileUrlsMap
+    dragOverFolder: string | null
+    isItemSelected: (item: FileSystemElement) => boolean
+    getFolderName: (element: FileSystemElement) => string
+  }
+
+  const props = withDefaults(defineProps<Props>(), {})
+
+  const emit = defineEmits<{
+    'folder-click': [element: FileSystemElement]
+    'preview': [file: FileSystemElement]
+    'download': [file: FileSystemElement]
+    'edit-folder': [element: FileSystemElement]
+    'delete': [element: FileSystemElement]
+    'toggle-selection': [element: FileSystemElement]
+    'change-startscreen': [state: boolean, file: FileSystemElement]
+    'navigate-up': []
+    'open-upload-dialog': []
+    'create-folder': []
+    'dragstart': [event: DragEvent, element: FileSystemElement]
+    'dragend': []
+    'dragover': [event: DragEvent, element: FileSystemElement]
+    'dragleave': [event: DragEvent, element: FileSystemElement]
+    'drop': [event: DragEvent, element: FileSystemElement]
+  }>()
+
+  const handleNavigateUp = (): void => emit('navigate-up')
+  const handleFolderClick = (element: FileSystemElement): void => emit('folder-click', element)
+  const handlePreview = (file: FileSystemElement): void => emit('preview', file)
+  const handleDownload = (file: FileSystemElement): void => emit('download', file)
+  const handleEditFolder = (element: FileSystemElement): void => emit('edit-folder', element)
+  const handleDelete = (element: FileSystemElement): void => emit('delete', element)
+  const handleToggleSelection = (element: FileSystemElement): void => emit('toggle-selection', element)
+  const handleOpenUploadDialog = (): void => emit('open-upload-dialog')
+  const handleCreateFolder = (): void => emit('create-folder')
+  const handleDragStart = (event: DragEvent, element: FileSystemElement): void => emit('dragstart', event, element)
+  const handleDragEnd = (): void => emit('dragend')
+  const handleDragOver = (event: DragEvent, element: FileSystemElement): void => emit('dragover', event, element)
+  const handleDragLeave = (event: DragEvent, element: FileSystemElement): void => emit('dragleave', event, element)
+  const handleDrop = (event: DragEvent, element: FileSystemElement): void => emit('drop', event, element)
+
+  const foldersAndNavigation = computed(() => {
+    return props.fileObjects.filter(
+      element => element.modelType === 'SubmodelElementCollection' || element.modelType === 'NavigationElement',
+    )
+  })
+
+  const files = computed(() => {
+    return props.fileObjects.filter(element => element.modelType === 'File')
+  })
+</script>

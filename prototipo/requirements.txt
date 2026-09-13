@@ -1,4 +1,6 @@
 asyncua>=1.1.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
 streamlit>=1.32.0
 pandas>=2.2.0
 plotly>=5.19.0

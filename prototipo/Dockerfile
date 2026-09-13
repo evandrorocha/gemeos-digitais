@@ -16,13 +16,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia o código do Gêmeo Digital e do Dashboard
 COPY gemeo-digital/ ./gemeo-digital/
 COPY dashboard/ ./dashboard/
+COPY aas_api.py ./aas_api.py
 
 # Define variáveis de ambiente padrão
 ENV PYTHONUNBUFFERED=1
 ENV OPCUA_SERVER_URL="opc.tcp://host.docker.internal:4840"
 
-# Expõe a porta do Dashboard Streamlit
+# Expõe as portas do Dashboard Streamlit e da API AAS
 EXPOSE 8501
+EXPOSE 8000
 
 # Comando de inicialização
 CMD ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
